@@ -46,8 +46,8 @@ function Chips({ items, tone }: { items: string[]; tone: 'green' | 'orange' | 'g
   const fg = tone === 'green' ? colors.greenText : tone === 'orange' ? colors.orange : colors.text2;
   return (
     <View style={styles.chips}>
-      {items.map((t) => (
-        <View key={t} style={[styles.chip, { backgroundColor: bg }]}>
+      {items.map((t, n) => (
+        <View key={`${n}-${t}`} style={[styles.chip, { backgroundColor: bg }]}>
           <Text style={[styles.chipText, { color: fg }]}>{t}</Text>
         </View>
       ))}
@@ -155,71 +155,50 @@ export default function Results() {
         </View>
 
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 28 }]} onLayout={(e) => setCurveWidth(e.nativeEvent.layout.width - 48)}>
-          <Text style={styles.section}>Breakdown</Text>
-          <View style={{ marginTop: 16, gap: 16 }}>
-            <Bar label="Voice" weight="20%" value={r.voice} />
-            <Bar label="Body" weight="55%" value={r.body} />
-            <Bar label="Content" weight="25%" value={r.content} />
+          <Text style={styles.section}>Score breakdown</Text>
+          <View style={{ marginTop: 16, gap: 14 }}>
+            {r.details?.delivery && <Bar label="Eye contact" weight="25%" value={r.details.delivery.eyeContact} />}
+            <Bar label="Language" weight="25%" value={r.content} />
+            <Bar label="Fillers" weight="20%" value={r.voice} />
+            {r.details?.delivery && <Bar label="Posture" weight="15%" value={r.details.delivery.posture} />}
+            {r.details?.delivery && <Bar label="Gestures" weight="15%" value={r.details.delivery.gestures} />}
           </View>
+          {!r.details?.delivery && <Text style={styles.detailBody}>Audio-only take: eye contact, posture and gestures were not scored.</Text>}
 
           {r.details && (
             <>
               <View style={styles.hr} />
-              <Text style={styles.section}>The numbers</Text>
+              <Text style={styles.section}>Details</Text>
               <View style={styles.statGrid}>
-                <Stat label="Pace" value={`${r.details.pace.wpm} wpm`} note={r.details.pace.band} tone={r.details.pace.band === 'on target' ? 'green' : r.details.pace.band === 'fast' || r.details.pace.band === 'slow' ? 'orange' : 'navy'} />
-                <Stat label="Fillers" value={`${r.details.fillers.total}`} note={`${r.details.fillers.per100} per 100 words`} tone={r.details.fillers.per100 <= 2 ? 'green' : r.details.fillers.per100 >= 5 ? 'orange' : 'navy'} />
+                <Stat label="Pace" value={`${r.details.pace.wpm}`} note={`wpm · ${r.details.pace.band}`} tone={r.details.pace.band === 'on target' ? 'green' : r.details.pace.band === 'fast' || r.details.pace.band === 'slow' ? 'orange' : 'navy'} />
+                <Stat label="Fillers" value={`${r.details.fillers.total}`} note={`${r.details.fillers.per100} per 100`} tone={r.details.fillers.per100 <= 2 ? 'green' : r.details.fillers.per100 >= 5 ? 'orange' : 'navy'} />
                 <Stat label="Words" value={`${r.details.words}`} note={`in ${fmtDuration(r.details.duration)}`} />
-                {r.details.delivery ? <Stat label="Eye contact" value={`${r.details.delivery.eyeContact}`} note="out of 100" tone={r.details.delivery.eyeContact >= 75 ? 'green' : r.details.delivery.eyeContact <= 25 ? 'orange' : 'navy'} /> : <Stat label="Vocabulary" value={`${r.details.vocabulary.score}`} note="out of 100" />}
               </View>
-
-              <Text style={styles.subhead}>Filler words</Text>
-              {r.details.fillers.total === 0 ? (
-                <Text style={styles.detailBody}>None. Clean take.</Text>
-              ) : (
-                <>
-                  <Chips items={[...r.details.fillers.byWord.map((f) => `${f.word} ×${f.count}`), ...r.details.fillers.examples.map((e) => `"${e}"`)]} tone="orange" />
-                  <Text style={styles.detailBody}>Fluent speakers sit near 1–2 per 100 words. Each one is a spot for a half-second pause instead.</Text>
-                </>
+              {r.details.fillers.total > 0 && (
+                <Chips items={[...r.details.fillers.byWord.map((f) => `${f.word} ×${f.count}`), ...r.details.fillers.examples.map((e) => `"${e}"`)]} tone="orange" />
               )}
 
-              <Text style={styles.subhead}>Vocabulary</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={styles.levelPill}>
-                  <Text style={styles.levelText}>{LEVELS[r.details.vocabulary.level]}</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Vocabulary</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={styles.levelPill}>
+                    <Text style={styles.levelText}>{LEVELS[r.details.vocabulary.level]}</Text>
+                  </View>
+                  <Text style={styles.detailInline}>{r.details.vocabulary.score}</Text>
                 </View>
-                <Text style={styles.detailInline}>{r.details.vocabulary.score} / 100</Text>
               </View>
-              {r.details.vocabulary.strongWords.length > 0 && (
-                <>
-                  <Text style={styles.detailCaption}>Worked</Text>
-                  <Chips items={r.details.vocabulary.strongWords} tone="green" />
-                </>
-              )}
-              {r.details.vocabulary.weakWords.length > 0 && (
-                <>
-                  <Text style={styles.detailCaption}>Vague, swap next time</Text>
-                  <Chips items={r.details.vocabulary.weakWords} tone="orange" />
-                </>
-              )}
+              {r.details.vocabulary.strongWords.length > 0 && <Chips items={r.details.vocabulary.strongWords} tone="green" />}
+              {r.details.vocabulary.weakWords.length > 0 && <Chips items={r.details.vocabulary.weakWords} tone="orange" />}
 
-              <Text style={styles.subhead}>Structure</Text>
-              <View style={{ flexDirection: 'row', gap: 14 }}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Structure</Text>
+                <Text style={styles.detailInline}>{r.details.structure.score}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 14, marginTop: 4 }}>
                 <MiniBar label="Opening" rating={r.details.structure.opening} />
                 <MiniBar label="Point" rating={r.details.structure.support} />
                 <MiniBar label="Close" rating={r.details.structure.closing} />
               </View>
-
-              {r.details.delivery && (
-                <>
-                  <Text style={styles.subhead}>Delivery</Text>
-                  <View style={{ gap: 12 }}>
-                    <Bar label="Eye contact" weight="25%" value={r.details.delivery.eyeContact} />
-                    <Bar label="Posture" weight="15%" value={r.details.delivery.posture} />
-                    <Bar label="Gestures" weight="15%" value={r.details.delivery.gestures} />
-                  </View>
-                </>
-              )}
             </>
           )}
 
@@ -267,14 +246,6 @@ export default function Results() {
               ))}
             </View>
           )}
-          <View style={{ marginTop: 16, gap: 10 }}>
-            {r.also.map((a) => (
-              <View key={a.label} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={styles.alsoLabel}>{a.label}</Text>
-                <Text style={styles.alsoValue}>{a.value}</Text>
-              </View>
-            ))}
-          </View>
 
           <View style={{ marginTop: 32, gap: 14, alignItems: 'center' }}>
             <ChunkyButton tone="green" label="Share score card" icon={<Share />} depth={4} style={{ alignSelf: 'stretch' }} onPress={() => router.push('/share')} />
@@ -327,11 +298,13 @@ const styles = StyleSheet.create({
   alsoLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.text2 },
   alsoValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.navy },
   statGrid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  stat: { width: '48%', flexGrow: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.sheet, borderWidth: 1, borderColor: colors.hair },
+  stat: { flex: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.sheet, borderWidth: 1, borderColor: colors.hair },
   statLabel: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted },
-  statValue: { marginTop: 4, fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
+  statValue: { marginTop: 2, fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
   statNote: { marginTop: 2, fontFamily: fonts.medium, fontSize: 12, color: colors.text2 },
   subhead: { marginTop: 22, marginBottom: 8, fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
+  detailRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
   subheadTight: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
   detailBody: { marginTop: 8, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.text2 },
   detailInline: { fontFamily: fonts.bold, fontSize: 15, color: colors.navy },

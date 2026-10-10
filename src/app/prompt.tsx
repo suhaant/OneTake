@@ -76,7 +76,7 @@ export default function Prompt() {
     <View style={styles.root}>
       <AeroBackground bubbles={[{ x: 0.1, y: 0.4, r: 23 }]} />
 
-      <View style={[styles.header, { top: insets.top + 8 }]}>
+      <View style={[styles.header, { marginTop: insets.top + 8 }]}>
         <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={styles.roundBtn}>
           <Back />
         </Pressable>
@@ -84,12 +84,12 @@ export default function Prompt() {
         <View style={{ width: 44 }} />
       </View>
 
-      <View style={[styles.pandaRow, { top: insets.top + 68 }]}>
+      <View style={styles.pandaRow}>
         <Panda pose="encourage" headOnly size={84} />
         <SpeechBubble text={recording ? 'Eyes on the lens. You are doing great.' : "Read it twice, then look at the lens. I'll start the clock when you tap."} />
       </View>
 
-      <View style={[styles.promptWrap, { top: insets.top + 176 }]}>
+      <View style={styles.promptWrap}>
         <Text style={styles.prompt}>{promptText}</Text>
         <Text style={styles.promptSub}>
           {takers === 0 ? 'Be the first to take this one today.' : takers === 1 ? '1 person has taken this one today.' : `${takers.toLocaleString()} people have taken this one today.`}
@@ -97,7 +97,7 @@ export default function Prompt() {
       </View>
 
       {/* viewfinder */}
-      <View style={[styles.finder, { top: insets.top + 300, bottom: insets.bottom + 124 }]}>
+      <View style={styles.finder}>
         {granted ? (
           <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror zoom={0} onCameraReady={() => { console.log('[onetake] camera ready'); setReady(true); }} />
         ) : (
@@ -120,7 +120,7 @@ export default function Prompt() {
       </View>
 
       {/* shutter */}
-      <View style={[styles.shutterWrap, { bottom: insets.bottom + 28 }]}>
+      <View style={[styles.shutterWrap, { paddingBottom: insets.bottom + 28 }]}>
         <Pressable
           accessibilityLabel={recording ? 'Stop recording' : 'Start recording'}
           onPress={recording ? stop : start}
@@ -155,7 +155,7 @@ const shadowText = { textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { position: 'absolute', left: 20, right: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { marginHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontFamily: fonts.bold, fontSize: 14, letterSpacing: 1.4, textTransform: 'uppercase', color: '#fff', ...shadowText },
   roundBtn: {
     width: 44,
@@ -167,14 +167,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pandaRow: { position: 'absolute', left: 20, right: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  promptWrap: { position: 'absolute', left: 28, right: 28 },
-  prompt: { fontFamily: fonts.bold, fontSize: 30, lineHeight: 35, letterSpacing: -0.4, color: '#fff', textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
-  promptSub: { marginTop: 10, fontFamily: fonts.medium, fontSize: 14, color: '#fff', opacity: 0.92, ...shadowText },
+  pandaRow: { marginTop: 16, marginHorizontal: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  promptWrap: { marginTop: 18, marginHorizontal: 28 },
+  prompt: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 31, letterSpacing: -0.4, color: '#fff', textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
+  promptSub: { marginTop: 8, fontFamily: fonts.medium, fontSize: 14, color: '#fff', opacity: 0.92, ...shadowText },
   finder: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
+    flex: 1,
+    marginTop: 18,
+    marginHorizontal: 20,
+    minHeight: 220,
     borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: '#1C2833',
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   permText: { fontFamily: fonts.semi, fontSize: 15, color: '#fff', textAlign: 'center', lineHeight: 21 },
   permBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 999, backgroundColor: '#fff' },
   permBtnText: { fontFamily: fonts.bold, color: colors.navy },
-  shutterWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 12 },
+  shutterWrap: { paddingTop: 16, alignItems: 'center', gap: 12 },
   shutter: { width: 78, height: 78, alignItems: 'center', justifyContent: 'center' },
   shutterDot: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E8261E' },
   shutterStop: { width: 30, height: 30, borderRadius: 7 },
