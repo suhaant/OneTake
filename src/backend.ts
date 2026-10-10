@@ -135,8 +135,8 @@ export async function scoreTake(videoUri: string, prompt: string, userId?: strin
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/submissions`, { method: 'POST', body: form });
-  } catch {
-    throw new BackendUnreachable(`Cannot reach ${BASE}`);
+  } catch (err) {
+    throw new BackendUnreachable(`Cannot reach ${BASE} (upload ${name}): ${err instanceof Error ? err.message : String(err)}`);
   }
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
   const { submission_id } = (await res.json()) as { submission_id: string };

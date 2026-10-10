@@ -40,8 +40,10 @@ export default function Prompt() {
     setLeft(TAKE_SECONDS);
     try {
       const video = await camera.current.recordAsync({ maxDuration: TAKE_SECONDS });
+      console.log('[onetake] recorded', video?.uri ?? '(no uri)');
       setVideoUri(video?.uri ?? null);
-    } catch {
+    } catch (err) {
+      console.warn('[onetake] recording failed:', err instanceof Error ? err.message : String(err));
       setVideoUri(null);
     }
     router.replace('/thinking');
