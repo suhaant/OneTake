@@ -1,0 +1,4 @@
+# Client side (ranking, features, CLI). The GPU service installs its own packages (api/modal_app.py).
+numpy
+# Only for the scripts in tools/:
+# modal nilearn nibabel pandas scipy matplotlib

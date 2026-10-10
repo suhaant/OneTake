@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import AeroBackground from '../components/AeroBackground';
+import BrainResponse from '../components/BrainResponse';
 import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import ScoreRing from '../components/ScoreRing';
@@ -141,6 +142,8 @@ export default function Results() {
               </View>
             ))}
           </View>
+
+          <BrainResponse submissionId={r.submissionId} width={curveWidth} />
 
           <View style={styles.hr} />
 

@@ -18,6 +18,9 @@ class Settings:
     transcription_model: str = os.getenv("TRANSCRIPTION_MODEL", "gemini-3.5-transcribe")
     semantic_model: str = os.getenv("SEMANTIC_MODEL", "gemini-3.8-flash")
     video_model: str = os.getenv("VIDEO_MODEL", "gemini-3.8-flash")
+    # Neuro API (see /neuro). Leave unset to turn the brain-response panel off.
+    neuro_score_url: str | None = os.getenv("NEURO_SCORE_URL") or None
+    neuro_timeout_seconds: int = int(os.getenv("NEURO_TIMEOUT_SECONDS", "300"))
 
 
 settings = Settings()

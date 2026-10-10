@@ -1,0 +1,5 @@
+__pycache__/
+.env
+tools/hcp_atlas/
+tools/song_data/
+*_neuro/

@@ -69,7 +69,7 @@ async function standing(userId: string | undefined, score: number) {
   }
 }
 
-function toResult(s: Submission, place: { rank: number; total: number; delta: number }): TakeResult {
+function toResult(s: Submission, place: { rank: number; total: number; delta: number }, submissionId: string): TakeResult {
   const good = [...(s.feedback.content_notes?.strengths ?? [s.feedback.strength]), ...(s.feedback.delivery_notes?.strengths ?? [])];
   const bad = [...(s.feedback.delivery_notes?.improvements ?? []), ...(s.feedback.content_notes?.weaknesses ?? [s.feedback.improvement])];
   const moments: Moment[] = [
@@ -98,6 +98,7 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
     focusTitle: bad[0] ?? s.feedback.improvement,
     focusBody: s.feedback.next_exercise,
     also,
+    submissionId,
   };
 }
 
@@ -118,7 +119,51 @@ export async function scoreTake(videoUri: string, prompt: string, userId?: strin
     await sleep(POLL_MS);
     const s = await getJson<Submission>(`/api/submissions/${submission_id}`);
     if (s.status === 'failed') throw new Error(s.error ?? 'Scoring failed');
-    if (s.status === 'completed') return toResult(s, await standing(userId, s.overall_score));
+    if (s.status === 'completed') return toResult(s, await standing(userId, s.overall_score), submission_id);
   }
   throw new Error('Scoring is taking too long');
+}
+
+/** Rank of one value against the neuro calibration texts (see /neuro/ANALYSIS.md). */
+export type NeuroRank = { value: number; percentile: number; beats_flat_texts: number; beats_vivid_texts: number; band?: string };
+
+/** Predicted brain response for a take (TRIBE v2). Display-only; it is not part of the score. */
+export type Neuro = {
+  status: 'processing' | 'completed' | 'unavailable' | 'disabled';
+  reason?: string;
+  ranking?: {
+    raw_score: NeuroRank;
+    vividness_score: NeuroRank;
+    networks: Record<string, NeuroRank>;
+    most_activated_regions: { region: string; role: string; activation: number }[];
+    notes: string[];
+  };
+  peak?: { t: number; text: string };
+  dip?: { t: number; text: string };
+  /** predicted response per second; null where there was no prediction */
+  curve?: (number | null)[];
+};
+
+const NEURO_POLL_MS = 3000;
+const NEURO_TIMEOUT_MS = 240_000;
+
+/** Waits for the brain-response prediction. Resolves with a non-completed status rather than throwing. */
+export async function fetchNeuro(submissionId: string, isActive: () => boolean = () => true): Promise<Neuro> {
+  const deadline = Date.now() + NEURO_TIMEOUT_MS;
+  while (isActive() && Date.now() < deadline) {
+    try {
+      const neuro = await getJson<Neuro>(`/api/submissions/${submissionId}/neuro?brain=false`);
+      if (neuro.status !== 'processing') return neuro;
+    } catch {
+      return { status: 'unavailable', reason: 'The backend could not be reached' };
+    }
+    await sleep(NEURO_POLL_MS);
+  }
+  return { status: 'unavailable', reason: 'The prediction is taking too long' };
+}
+
+/** Page with the 3D brain for a take; served by the backend, shown in an iframe or web view. */
+export function neuroViewerUrl(submissionId: string): string {
+  const result = `${BASE}/api/submissions/${submissionId}/neuro`;
+  return `${BASE}/neuro/viewer/index.html?embed=1&result=${encodeURIComponent(result)}`;
 }

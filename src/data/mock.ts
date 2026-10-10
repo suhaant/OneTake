@@ -16,6 +16,8 @@ export type TakeResult = {
   focusTitle: string;
   focusBody: string;
   also: { label: string; value: string }[];
+  /** backend submission this result came from; absent for the sample result */
+  submissionId?: string;
 };
 
 export const todaysPrompt = {

@@ -25,6 +25,10 @@ The overall score is a weighted mean of five metrics, each 0–100:
 
 These are rubric ratings, not precision measurements. WAV submissions have no visual metrics, so the weights are renormalized over `fillers` and `language`. Takes under 30 words are scaled down proportionally.
 
+## Brain response (optional)
+
+When `NEURO_SCORE_URL` is set, each take's transcript is also sent to the neuro API (see [`/neuro`](../neuro/README.md)), which predicts a listener's brain response with Meta's TRIBE v2 model. `GET /api/submissions/{submission_id}/neuro` returns the ranking, the regions involved and the map for the 3D viewer served at `/neuro/viewer/`. The call runs in its own thread, is cached under `UPLOAD_DIR/neuro/`, and never delays or fails a submission. It is display-only and does not enter the overall score: it reflects how vivid the language is and has not been validated as a measure of audience engagement. TRIBE v2 is licensed for non-commercial use only.
+
 ## Persistence (TigerData)
 
 When `DATABASE_URL` is set, the API uses Postgres. If not, it falls back to `data/submissions.json`. Tables are created on startup:

@@ -9,8 +9,10 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import neuro
 from .audio import analyze_audio
 from .config import settings
 from .scoring import VISUAL_METRICS, category_scores, filler_score, overall_score, rubric_score
@@ -33,6 +35,9 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="OneTake API", version="0.2.0", lifespan=lifespan)
 # The Expo web build calls this API from another origin; native builds are unaffected.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# The 3D brain viewer page and its mesh; the app embeds it in a web view.
+NEURO_VIEWER = Path(__file__).resolve().parents[2] / "neuro" / "viewer"
+if NEURO_VIEWER.is_dir(): app.mount("/neuro/viewer", StaticFiles(directory=NEURO_VIEWER, html=True), name="neuro-viewer")
 DAILY_PROMPT = "Explain one change that would improve your community and why."
 logger = logging.getLogger(__name__)
 
@@ -56,6 +61,7 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
         is_video = recording_path.suffix.lower() in {".mov", ".mp4", ".webm"}
         audio_path = extract_wav(recording_path, recording_path.with_suffix(".wav")) if is_video else recording_path
         transcript = transcribe(audio_path)
+        neuro.start(submission_id, transcript)  # display-only, runs alongside the scoring below
         audio = analyze_audio(audio_path, transcript)
         semantic = evaluate_speech(transcript.text, prompt)
         # Regex catches um/uh; Gemini adds contextual fillers ("like", "you know", repeats) that need context.
@@ -94,6 +100,19 @@ def get_submission(submission_id: str) -> dict:
     submission = store.get(submission_id)
     if not submission: raise HTTPException(404, "Submission not found")
     return submission
+
+
+@app.get("/api/submissions/{submission_id}/neuro")
+def get_neuro(submission_id: str, brain: bool = True) -> dict:
+    """Predicted brain response for a take. Poll while status is "processing".
+
+    brain=false leaves out the per-vertex map (about 1 MB), which only the 3D viewer needs.
+    """
+    submission = store.get(submission_id)
+    if not submission: raise HTTPException(404, "Submission not found")
+    result = neuro.get(submission_id, submission)
+    if not brain: result.pop("brain", None)
+    return result
 
 
 @app.get("/api/users/{user_id}/progress")
