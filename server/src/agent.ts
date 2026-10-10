@@ -56,10 +56,13 @@ async function generate(profile: Profile, task: string, contents: string): Promi
       config: {
         systemInstruction: `${RULES}\nVoice: ${VOICES[profile.persona]}\n\n${task}\n\nDATA:\n${data}`,
         temperature: 0.7,
-        maxOutputTokens: 400,
-        abortSignal: AbortSignal.timeout(12_000),
+        // The model's reasoning counts against this, so it has to be far larger than the text itself.
+        maxOutputTokens: 2048,
+        abortSignal: AbortSignal.timeout(20_000),
       },
     });
+    // A reply cut off mid-sentence is worse than the template.
+    if (res.candidates?.[0]?.finishReason === 'MAX_TOKENS') return null;
     return res.text?.trim() || null;
   } catch (err) {
     console.error('[agent] generation failed, using fallback:', err);
