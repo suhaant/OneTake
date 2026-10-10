@@ -16,7 +16,7 @@ const TAKE_SECONDS = 30;
 
 export default function Prompt() {
   const insets = useSafeAreaInsets();
-  const { setVideoUri } = useApp();
+  const { setVideoUri, promptText } = useApp();
   const [cam, requestCam] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
@@ -71,7 +71,7 @@ export default function Prompt() {
       </View>
 
       <View style={[styles.promptWrap, { top: insets.top + 176 }]}>
-        <Text style={styles.prompt}>{todaysPrompt.text}</Text>
+        <Text style={styles.prompt}>{promptText}</Text>
         <Text style={styles.promptSub}>{todaysPrompt.takers.toLocaleString()} people have taken this one today.</Text>
       </View>
 

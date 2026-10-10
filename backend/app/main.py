@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .audio import analyze_audio
@@ -30,6 +31,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="OneTake API", version="0.2.0", lifespan=lifespan)
+# The Expo web build calls this API from another origin; native builds are unaffected.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 DAILY_PROMPT = "Explain one change that would improve your community and why."
 logger = logging.getLogger(__name__)
 

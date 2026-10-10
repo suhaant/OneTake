@@ -33,7 +33,7 @@ function MiniBar({ label, value }: { label: string; value: number }) {
 
 /** The 1080×1350 card, drawn at full size and scaled down to fit the screen. */
 function ScoreCard() {
-  const { result, streak } = useApp();
+  const { result, streak, promptText } = useApp();
   const r = result ?? mockResult;
   return (
     <View style={{ width: CARD_W, height: CARD_H, overflow: 'hidden' }}>
@@ -51,7 +51,7 @@ function ScoreCard() {
         Day {todaysPrompt.day} · {streak}-day streak
       </Text>
 
-      <Text style={card.prompt}>{`"${todaysPrompt.text}"`}</Text>
+      <Text style={card.prompt}>{`"${promptText}"`}</Text>
 
       <View style={{ position: 'absolute', left: 72, top: 330 }}>
         <ScoreRing score={r.score} size={440} stroke={28} />

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import AeroBackground from '../components/AeroBackground';
+import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import { SpeechBubble } from '../components/Glass';
 import { colors, fonts } from '../theme';
@@ -10,21 +11,21 @@ import { useApp } from '../store';
 const lines = ['Give me a sec…', 'Listening back to your voice…', 'Checking eye contact…', 'Reading the structure…', 'Almost there…'];
 
 export default function Thinking() {
-  const { finishAnalysis } = useApp();
+  const { analyze } = useApp();
   const [i, setI] = useState(0);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const tick = setInterval(() => setI((n) => Math.min(n + 1, lines.length - 1)), 1100);
-    // TODO: replace the timer with the real analysis promise
-    const done = setTimeout(() => {
-      finishAnalysis();
-      router.replace('/results');
-    }, 5200);
+    analyze()
+      .then(() => active && router.replace('/results'))
+      .catch(() => active && setFailed(true));
     return () => {
+      active = false;
       clearInterval(tick);
-      clearTimeout(done);
     };
-  }, [finishAnalysis]);
+  }, [analyze]);
 
   return (
     <View style={styles.root}>
@@ -32,11 +33,17 @@ export default function Thinking() {
       <View style={styles.center}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 24, marginBottom: 24, width: '100%' }}>
           <View style={{ width: 84 }} />
-          <SpeechBubble text={lines[i]} />
+          <SpeechBubble text={failed ? "I couldn't score that take. Your streak is safe; try recording again." : lines[i]} />
         </View>
-        <Panda pose="thinking" size={230} />
-        <Text style={styles.label}>Analyzing your take</Text>
-        <Text style={styles.sub}>Voice · Body · Content</Text>
+        <Panda pose={failed ? 'console' : 'thinking'} size={230} />
+        {failed ? (
+          <ChunkyButton tone="green" label="Record again" depth={4} style={{ marginTop: 24, alignSelf: 'stretch', marginHorizontal: 32 }} onPress={() => router.replace('/prompt')} />
+        ) : (
+          <>
+            <Text style={styles.label}>Analyzing your take</Text>
+            <Text style={styles.sub}>Voice · Body · Content</Text>
+          </>
+        )}
       </View>
     </View>
   );

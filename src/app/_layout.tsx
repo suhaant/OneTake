@@ -33,6 +33,7 @@ export default function RootLayout() {
         <Stack.Screen name="thinking" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="results" options={{ animation: 'fade' }} />
         <Stack.Screen name="share" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="c/[id]" />
       </Stack>
     </AppProvider>
   );

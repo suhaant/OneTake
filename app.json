@@ -33,6 +33,12 @@
       "expo-font",
       "expo-sharing",
       [
+        "expo-contacts",
+        {
+          "contactsPermission": "OneTake uses your contacts so you can pick a friend to challenge."
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "OneTake records your 30-second take to score it.",

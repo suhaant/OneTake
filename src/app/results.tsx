@@ -80,7 +80,7 @@ export default function Results() {
   const pose = r.score >= 75 ? 'celebrate' : r.score < 55 ? 'console' : 'idle';
   const bubble =
     pose === 'celebrate'
-      ? 'Done. Strong open, a wobble in the middle, clean finish. Details below.'
+      ? 'Done. That was a strong take. Details below.'
       : pose === 'console'
         ? "Rough one. Here's the one thing to fix."
         : 'Solid take. A couple of things to tighten up below.';
@@ -113,29 +113,29 @@ export default function Results() {
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 28 }]} onLayout={(e) => setCurveWidth(e.nativeEvent.layout.width - 48)}>
           <Text style={styles.section}>Breakdown</Text>
           <View style={{ marginTop: 16, gap: 16 }}>
-            <Bar label="Voice" weight="40%" value={r.voice} />
-            <Bar label="Body" weight="30%" value={r.body} />
-            <Bar label="Content" weight="30%" value={r.content} />
+            <Bar label="Voice" weight="20%" value={r.voice} />
+            <Bar label="Body" weight="55%" value={r.body} />
+            <Bar label="Content" weight="25%" value={r.content} />
           </View>
 
           <View style={styles.hr} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={styles.section}>Your 30 seconds</Text>
-            <Text style={styles.sectionSub}>predicted attention · avg {r.attentionAvg}%</Text>
+            {r.attention.length > 1 && <Text style={styles.sectionSub}>predicted attention · avg {r.attentionAvg}%</Text>}
           </View>
-          {curveWidth > 0 && <AttentionCurve data={r.attention} width={curveWidth} />}
+          {curveWidth > 0 && r.attention.length > 1 && <AttentionCurve data={r.attention} width={curveWidth} />}
 
           <View style={{ marginTop: 14 }}>
             {r.moments.map((m, i) => (
-              <View key={m.t} style={styles.moment}>
+              <View key={i} style={styles.moment}>
                 <Text style={styles.momentTime}>{m.t}</Text>
                 <View style={{ alignItems: 'center', alignSelf: 'stretch' }}>
                   <View style={styles.momentDot} />
                   {i < r.moments.length - 1 && <View style={styles.momentLine} />}
                 </View>
                 <Text style={styles.momentText}>
-                  <Text style={{ fontFamily: fonts.bold }}>{m.title} </Text>
+                  {m.title ? <Text style={{ fontFamily: fonts.bold }}>{m.title} </Text> : null}
                   {m.body}
                 </Text>
               </View>
@@ -158,9 +158,7 @@ export default function Results() {
 
           <View style={{ marginTop: 32, gap: 14, alignItems: 'center' }}>
             <ChunkyButton tone="green" label="Share score card" icon={<Share />} depth={4} style={{ alignSelf: 'stretch' }} onPress={() => router.push('/share')} />
-            <Pressable onPress={() => router.replace('/(tabs)/friends')} style={{ padding: 8 }}>
-              <Text style={styles.link}>Challenge a friend to this prompt</Text>
-            </Pressable>
+            <ChunkyButton tone="blue" label={`Dare a friend to beat ${r.score}`} depth={4} style={{ alignSelf: 'stretch' }} onPress={() => router.replace('/(tabs)/friends')} />
           </View>
         </View>
       </ScrollView>
@@ -208,5 +206,4 @@ const styles = StyleSheet.create({
   focusBody: { marginTop: 8, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.text2 },
   alsoLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.text2 },
   alsoValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.navy },
-  link: { fontFamily: fonts.bold, fontSize: 16, color: colors.blue },
 });
