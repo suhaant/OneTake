@@ -9,6 +9,7 @@ from threading import Lock
 from typing import Any, Protocol
 
 from .config import settings
+from .prompts import app_day, day_bounds
 from .scoring import WEIGHTS
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,7 @@ class Store(Protocol):
     def takers_today(self) -> int: ...
 
 
-def _utc_midnight() -> datetime:
-    return datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+def _today_bounds() -> tuple[datetime, datetime]: return day_bounds(app_day())
 
 
 def _standing(rank: int, total: int, score: float, previous: float | None) -> dict[str, Any]:
@@ -84,14 +84,16 @@ class JsonSubmissionStore:
         return [{"rank": i, **entry} for i, entry in enumerate(ranked, 1)]
 
     def takers_today(self) -> int:
-        with self.lock: return sum(datetime.fromisoformat(s["created_at"]) >= _utc_midnight() for s in self._load().values())
+        start, end = _today_bounds()
+        with self.lock: return sum(start <= datetime.fromisoformat(s["created_at"]) < end for s in self._load().values())
 
     def standing(self, submission_id: str) -> dict[str, Any] | None:
         takes = self._completed()
         me = next((s for s in takes if s["submission_id"] == submission_id), None)
         if not me or me.get("unavailable_metrics"): return None  # only video takes are ranked
         video = [s for s in takes if not s.get("unavailable_metrics")]
-        today = [s for s in video if s["created_at"][:10] == me["created_at"][:10]]
+        my_day = app_day(datetime.fromisoformat(me["created_at"]))
+        today = [s for s in video if app_day(datetime.fromisoformat(s["created_at"])) == my_day]
         earlier = [s for s in video if me.get("user_id") and s.get("user_id") == me["user_id"] and s["created_at"] < me["created_at"]]
         previous = max(earlier, key=lambda s: s["created_at"])["overall_score"] if earlier else None
         return _standing(1 + sum(s["overall_score"] > me["overall_score"] for s in today), len(today), me["overall_score"], previous)
@@ -192,13 +194,13 @@ class PostgresSubmissionStore:
 
     def progress(self, user_id: str, days: int, bucket: str) -> dict[str, Any]:
         metric_cols = ", ".join(METRICS)
-        bucket_expr = "time_bucket(%s::interval, time)" if self.timescale else "date_trunc(%s, time)"
+        bucket_expr = "time_bucket(%s::interval, time, %s)" if self.timescale else "date_trunc(%s, time, %s)"
         bucket_arg = BUCKETS[bucket] if self.timescale else bucket
         avg_cols = ", ".join(f"round(avg({m})::numeric, 2)::float AS {m}" for m in METRICS)
         with self.pool.connection() as conn:
             cur = conn.execute(f"SELECT submission_id, time, overall, {metric_cols} FROM score_events WHERE user_id = %s AND time > now() - make_interval(days => %s) ORDER BY time", (user_id, days))
             history = [dict(zip([d.name for d in cur.description], r)) for r in cur.fetchall()]
-            cur = conn.execute(f"SELECT {bucket_expr} AS bucket, count(*) AS takes, round(avg(overall)::numeric, 2)::float AS overall, {avg_cols} FROM score_events WHERE user_id = %s AND time > now() - make_interval(days => %s) GROUP BY 1 ORDER BY 1", (bucket_arg, user_id, days))
+            cur = conn.execute(f"SELECT {bucket_expr} AS bucket, count(*) AS takes, round(avg(overall)::numeric, 2)::float AS overall, {avg_cols} FROM score_events WHERE user_id = %s AND time > now() - make_interval(days => %s) GROUP BY 1 ORDER BY 1", (bucket_arg, settings.app_timezone, user_id, days))
             buckets = [dict(zip([d.name for d in cur.description], r)) for r in cur.fetchall()]
         for row in history + buckets:
             for key in ("time", "bucket"):
@@ -213,19 +215,18 @@ class PostgresSubmissionStore:
 
     def takers_today(self) -> int:
         with self.pool.connection() as conn:
-            return conn.execute("SELECT count(*) FROM submissions WHERE created_at >= %s", (_utc_midnight(),)).fetchone()[0]
+            return conn.execute("SELECT count(*) FROM submissions WHERE created_at >= %s AND created_at < %s", _today_bounds()).fetchone()[0]
 
     def standing(self, submission_id: str) -> dict[str, Any] | None:
-        """Rank among today's (UTC) video takes, plus change since this user's previous video take."""
+        """Rank among the same prompt day's video takes, plus change since this user's previous video take."""
         with self.pool.connection() as conn:
-            row = conn.execute("""
-                WITH me AS (SELECT time, user_id, overall FROM score_events WHERE submission_id = %s AND is_video)
-                SELECT 1 + (SELECT count(*) FROM score_events e WHERE e.is_video AND e.time >= date_trunc('day', me.time) AND e.time < date_trunc('day', me.time) + interval '1 day' AND e.overall > me.overall),
-                       (SELECT count(*) FROM score_events e WHERE e.is_video AND e.time >= date_trunc('day', me.time) AND e.time < date_trunc('day', me.time) + interval '1 day'),
-                       me.overall,
-                       (SELECT e.overall FROM score_events e WHERE e.is_video AND e.user_id = me.user_id AND e.time < me.time ORDER BY e.time DESC LIMIT 1)
-                FROM me""", (submission_id,)).fetchone()
-        return _standing(*row) if row else None
+            me = conn.execute("SELECT time, user_id, overall FROM score_events WHERE submission_id = %s AND is_video", (submission_id,)).fetchone()
+            if not me: return None
+            taken_at, user_id, score = me
+            start, end = day_bounds(app_day(taken_at))
+            rank, total = conn.execute("SELECT 1 + count(*) FILTER (WHERE overall > %s), count(*) FROM score_events WHERE is_video AND time >= %s AND time < %s", (score, start, end)).fetchone()
+            previous = conn.execute("SELECT overall FROM score_events WHERE is_video AND user_id = %s AND time < %s ORDER BY time DESC LIMIT 1", (user_id, taken_at)).fetchone()
+        return _standing(rank, total, score, previous[0] if previous else None)
 
 
 def make_store() -> Store:

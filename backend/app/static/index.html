@@ -85,11 +85,17 @@ let stream, recorder, chunks = [], prompt = "", ticker;
 
 $("user").value = localStorage.getItem("onetake_user") || "";
 
-async function init() {
+async function loadPrompt() {
   const daily = await (await fetch("/api/daily-prompt")).json();
+  const changed = prompt && prompt !== daily.prompt;
   prompt = daily.prompt;
   $("prompt").textContent = daily.prompt;
   $("tip").textContent = `Tip: ${daily.tip}`;
+  return changed;
+}
+
+async function init() {
+  await loadPrompt();
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
     $("preview").srcObject = stream;
@@ -106,10 +112,12 @@ function pickMime() {
   return "";
 }
 
-$("record").onclick = () => {
+$("record").onclick = async () => {
   if (recorder?.state === "recording") return recorder.stop();
   const user = $("user").value.trim();
   if (!user) { $("user").focus(); $("hint").textContent = "Enter your name first."; return; }
+  // The server assigns today's prompt; if the day rolled over since the page loaded, show the new one first.
+  if (await loadPrompt()) { $("hint").textContent = "A new day means a new prompt! Read it, then hit Record."; return; }
   localStorage.setItem("onetake_user", user);
   chunks = [];
   recorder = new MediaRecorder(stream, { mimeType: pickMime() });
@@ -134,7 +142,6 @@ async function submit(blob, user) {
   const form = new FormData();
   form.append("recording", blob, blob.type.includes("mp4") ? "take.mp4" : "take.webm");
   form.append("user_id", user);
-  form.append("prompt", prompt);
   try {
     const res = await fetch("/api/submissions", { method: "POST", body: form });
     if (!res.ok) throw new Error(await res.text());

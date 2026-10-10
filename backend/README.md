@@ -11,7 +11,7 @@ FastAPI backend for a short-speech coaching workflow. Upload a MOV, MP4, WebM, o
 
 Submit a MOV, MP4, WebM, or WAV recording as multipart form data to `POST /api/submissions` (optional `prompt` and `user_id` fields), then poll `GET /api/submissions/{submission_id}`.
 
-Connecting the Expo app: see [FRONTEND.md](FRONTEND.md).
+Connecting the Expo app: see [FRONTEND.md](FRONTEND.md). Full scoring math and rationale: [SCORING.md](SCORING.md).
 
 ## Scoring (v3)
 
@@ -22,10 +22,10 @@ The overall score is a weighted mean of five metrics, each 0–100:
 | `eye_contact` | 25% | Gemini video rubric (gaze toward the camera lens) |
 | `posture` | 15% | Gemini video rubric |
 | `body_language` | 15% | Gemini video rubric (hand gestures) |
-| `fillers` | 20% | um/uh regex + Gemini-counted contextual fillers ("like", "you know", repeats), per 100 words |
+| `fillers` | 20% | Software-counted um/uh, repeats, and restarts, plus Gemini-quoted contextual fillers; 100 − 8 × (per 100 words − 1) |
 | `language` | 25% | Mean of Gemini vocabulary and sentence-structure rubrics (sub-scores in `metric_details`) |
 
-Gemini's 1–5 ratings map to 20, 40, 60, 80, and 100. These are rubric ratings, not precision measurements. WAV submissions have no visual metrics, so the weights are renormalized over `fillers` and `language`. Takes under 30 words are scaled down proportionally. `GET /api/submissions/{id}` also returns a `take` object for the app: integer composite `score`, `breakdown`, today's `rank`/`percentile`, `delta` vs. the previous take, timestamped `moments`, `attention` curve, and the focus tip. CORS allows all origins by default; set `CORS_ORIGINS` to restrict it.
+Gemini's 1–5 ratings × 20 give 20–100. These are rubric ratings, not precision measurements. WAV submissions have no visual metrics, so the weights are renormalized over `fillers` and `language`. Takes under 30 words are scaled down proportionally. `GET /api/submissions/{id}` also returns a `take` object for the app: integer composite `score`, `breakdown`, today's `rank`/`percentile`, `delta` vs. the previous take, timestamped `moments`, `attention` curve, and the focus tip. CORS allows all origins by default; set `CORS_ORIGINS` to restrict it.
 
 ## Persistence (TigerData)
 

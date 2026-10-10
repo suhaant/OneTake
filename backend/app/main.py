@@ -97,11 +97,12 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
 
 
 @app.post("/api/submissions", response_model=SubmissionAccepted, status_code=202)
-async def create_submission(background_tasks: BackgroundTasks, recording: UploadFile = File(...), prompt: str | None = Form(default=None), user_id: str | None = Form(default=None)) -> SubmissionAccepted:
+async def create_submission(background_tasks: BackgroundTasks, recording: UploadFile = File(...), user_id: str | None = Form(default=None)) -> SubmissionAccepted:
     extension = Path(recording.filename or "").suffix.lower()
     if extension not in {".wav", ".mov", ".mp4", ".webm"}:
         raise HTTPException(415, "Supported uploads: WAV, MOV, MP4, and WebM.")
-    prompt = prompt or prompt_for()["prompt"]  # clients normally echo /api/daily-prompt
+    # The server alone assigns the prompt, so every take today answers the same one and ranks stay fair.
+    prompt = prompt_for()["prompt"]
     submission_id = uuid.uuid4().hex
     destination = settings.upload_dir / f"{submission_id}{extension}"
     destination.parent.mkdir(parents=True, exist_ok=True)

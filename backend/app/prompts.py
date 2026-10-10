@@ -1,8 +1,11 @@
-"""Daily prompts: everyone gets the same one each (UTC) day, so daily ranks compare like with like."""
+"""Daily prompts: everyone gets the same one each day, switching at midnight in APP_TIMEZONE, so daily ranks compare like with like."""
 from __future__ import annotations
 
 import random
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+from .config import settings
 
 # (prompt, tip) pairs sized for a 30-second answer.
 PROMPTS: list[tuple[str, str]] = [
@@ -72,7 +75,21 @@ _ORDER = list(range(len(PROMPTS)))
 random.Random("onetake-prompts-v1").shuffle(_ORDER)  # fixed seed: a stable "random" order with no repeats per cycle
 
 
+TZ = ZoneInfo(settings.app_timezone)
+
+
+def app_day(moment: datetime | None = None) -> date:
+    """The prompt day a moment belongs to (defaults to now)."""
+    return (moment or datetime.now(UTC)).astimezone(TZ).date()
+
+
+def day_bounds(day: date) -> tuple[datetime, datetime]:
+    """UTC start/end of a prompt day; DST-safe because each midnight is computed in local time."""
+    return (datetime.combine(day, time(), TZ).astimezone(UTC), datetime.combine(day + timedelta(days=1), time(), TZ).astimezone(UTC))
+
+
 def prompt_for(day: date | None = None) -> dict[str, str]:
-    day = day or datetime.now(UTC).date()
+    day = day or app_day()
     text, tip = PROMPTS[_ORDER[(day - EPOCH).days % len(PROMPTS)]]
-    return {"date": day.isoformat(), "prompt": text, "tip": tip}
+    start, end = day_bounds(day)
+    return {"date": day.isoformat(), "prompt": text, "tip": tip, "timezone": settings.app_timezone, "starts_at": start.isoformat(), "ends_at": end.isoformat()}
