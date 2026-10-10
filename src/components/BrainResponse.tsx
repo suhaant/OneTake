@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import BrainView from './BrainView';
 import { fetchNeuro, Neuro, neuroViewerUrl } from '../backend';
 import { colors, fonts } from '../theme';
@@ -18,7 +18,14 @@ function Curve({ data, peak, width }: { data: number[]; peak: number; width: num
   const d = data.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
   const at = Math.min(Math.max(peak, 0), data.length - 1);
   return (
-    <Svg width={width} height={h} style={{ marginTop: 12 }}>
+    <Svg width={width} height={h} style={{ marginTop: 18 }}>
+      <Defs>
+        <LinearGradient id="brainCurve" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#2FA6E8" stopOpacity={0.28} />
+          <Stop offset="1" stopColor="#2FA6E8" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Path d={`${d} L${width} ${h} L0 ${h} Z`} fill="url(#brainCurve)" />
       <Path d={d} fill="none" stroke={colors.blue} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
       <Circle cx={x(at)} cy={y(data[at])} r={5} fill="#fff" stroke={colors.blue} strokeWidth={2.5} />
     </Svg>
@@ -65,25 +72,22 @@ export default function BrainResponse({ submissionId, width }: { submissionId?: 
           </View>
 
           <View style={styles.ranks}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rankValue}>
-                {k.raw_score.percentile}
-                <Text style={styles.rankOf}> /100</Text>
-              </Text>
-              <Text style={styles.rankLabel}>Response strength</Text>
-              <Text style={styles.rankHint}>stronger than {k.raw_score.beats_flat_texts}% of bland reference texts</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rankValue}>
-                {k.vividness_score.percentile}
-                <Text style={styles.rankOf}> /100</Text>
-              </Text>
-              <Text style={styles.rankLabel}>Language vividness</Text>
-              <Text style={styles.rankHint}>ahead of {k.vividness_score.beats_vivid_texts}% of vivid reference texts</Text>
-            </View>
+            {[
+              { rank: k.raw_score, label: 'Response strength', hint: `stronger than ${k.raw_score.beats_flat_texts}% of bland reference texts` },
+              { rank: k.vividness_score, label: 'Language vividness', hint: `ahead of ${k.vividness_score.beats_vivid_texts}% of vivid reference texts` },
+            ].map((t) => (
+              <View key={t.label} style={styles.tile}>
+                <Text style={styles.rankLabel}>{t.label}</Text>
+                <Text style={styles.rankValue}>
+                  {t.rank.percentile}
+                  <Text style={styles.rankOf}> /100</Text>
+                </Text>
+                <Text style={styles.rankHint}>{t.hint}</Text>
+              </View>
+            ))}
           </View>
 
-          <View style={{ marginTop: 18, gap: 10 }}>
+          <View style={{ marginTop: 20, gap: 14 }}>
             {Object.entries(k.networks).map(([name, n]) => (
               <View key={name} style={styles.barRow}>
                 <Text style={styles.barLabel}>{NETWORK_LABELS[name] ?? name}</Text>
@@ -97,9 +101,10 @@ export default function BrainResponse({ submissionId, width }: { submissionId?: 
 
           {width > 0 && curve.length > 2 && <Curve data={curve} peak={neuro.peak?.t ?? 0} width={width} />}
           {neuro.peak?.text ? (
-            <Text style={styles.peak}>
-              Strongest predicted response at {clock(neuro.peak.t)}: <Text style={{ fontFamily: fonts.bold }}>“{neuro.peak.text}”</Text>
-            </Text>
+            <View style={styles.peak}>
+              <Text style={styles.peakWhen}>Strongest predicted response · {clock(neuro.peak.t)}</Text>
+              <Text style={styles.peakText}>“{neuro.peak.text}”</Text>
+            </View>
           ) : null}
 
           <Text style={styles.note}>
@@ -118,17 +123,20 @@ const styles = StyleSheet.create({
   sectionSub: { fontFamily: fonts.semi, fontSize: 12, color: colors.muted },
   waiting: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   waitingText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.text2 },
-  brain: { marginTop: 14, height: 380, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0d0f14' },
-  ranks: { marginTop: 18, flexDirection: 'row', gap: 16 },
-  rankValue: { fontFamily: fonts.bold, fontSize: 30, color: colors.navy },
+  brain: { marginTop: 14, height: 320, borderRadius: 24, overflow: 'hidden', backgroundColor: colors.sheet, borderWidth: 1, borderColor: colors.hair },
+  ranks: { marginTop: 12, flexDirection: 'row', gap: 12 },
+  tile: { flex: 1, borderRadius: 18, backgroundColor: colors.sheet, paddingVertical: 12, paddingHorizontal: 14 },
+  rankLabel: { fontFamily: fonts.semi, fontSize: 13, color: colors.text2 },
+  rankValue: { marginTop: 2, fontFamily: fonts.bold, fontSize: 30, lineHeight: 36, color: colors.navy },
   rankOf: { fontFamily: fonts.semi, fontSize: 14, color: colors.muted },
-  rankLabel: { fontFamily: fonts.semi, fontSize: 14, color: colors.navy },
   rankHint: { marginTop: 2, fontFamily: fonts.regular, fontSize: 12, lineHeight: 16, color: colors.muted },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  barLabel: { width: 96, fontFamily: fonts.semi, fontSize: 14, color: colors.navy },
+  barLabel: { width: 100, fontFamily: fonts.semi, fontSize: 15, color: colors.navy },
   track: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#E1EEF7', overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3, backgroundColor: colors.blue },
-  barValue: { width: 30, textAlign: 'right', fontFamily: fonts.bold, fontSize: 15, color: colors.navy },
-  peak: { marginTop: 10, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, color: colors.navy },
-  note: { marginTop: 12, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted },
+  barValue: { width: 34, textAlign: 'right', fontFamily: fonts.bold, fontSize: 18, color: colors.navy },
+  peak: { marginTop: 12, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: colors.blueLight },
+  peakWhen: { fontFamily: fonts.semi, fontSize: 12, color: colors.muted },
+  peakText: { marginTop: 2, fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, color: colors.navy },
+  note: { marginTop: 16, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted },
 });

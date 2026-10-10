@@ -5,6 +5,6 @@ export default function BrainView({ url }: { url: string }) {
   return React.createElement('iframe', {
     src: url,
     title: 'Predicted brain response',
-    style: { width: '100%', height: '100%', border: 0, display: 'block', backgroundColor: '#0d0f14' },
+    style: { width: '100%', height: '100%', border: 0, display: 'block', backgroundColor: '#F2F9FE' },
   });
 }

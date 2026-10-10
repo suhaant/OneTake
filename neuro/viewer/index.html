@@ -35,15 +35,43 @@
   .said { font-size:13px; margin:0 0 8px; }
   .said b { color:var(--accent); font-weight:600; }
   #empty { padding:40px 16px; text-align:center; color:var(--dim); }
-  /* ?embed=1: just the brain and its controls, for an iframe or web view inside the app */
+  /* ?embed=1: the brain on its own, styled to sit inside the app's results sheet.
+     Controls are small overlays so the brain stays the subject. */
+  body.embed { background:linear-gradient(180deg,#F7FBFE 0%,#E8F3FB 100%); color:#0B3D5C;
+               font-family:Hind,system-ui,-apple-system,"Segoe UI",sans-serif; overflow:hidden; }
   body.embed .wrap { display:block; padding:0; max-width:none; }
-  body.embed #side, body.embed .about, body.embed .weak { display:none; }
-  body.embed .stage { border:0; border-radius:0; height:100vh; display:flex; flex-direction:column; }
-  body.embed #brain { flex:1 1 0; height:auto; min-height:200px; }
-  body.embed .bar { padding:8px 10px; gap:6px; }
-  body.embed button { padding:6px 9px; font-size:13px; }
-  body.embed [data-view=front], body.embed [data-view=back] { display:none; }
+  body.embed #side, body.embed .about, body.embed .bar { display:none; }
+  body.embed .stage { position:relative; height:100vh; border:0; border-radius:0; background:none; }
+  body.embed #brain { height:calc(100% - 44px); min-height:0; }  /* leaves the timeline row clear */
+  #mini { display:none; }
+  body.embed #mini { display:block; }
+  #mini .views { position:absolute; top:10px; right:12px; display:flex; gap:2px; padding:2px; border-radius:99px;
+                 background:rgba(255,255,255,.55); }
+  #mini button { all:unset; cursor:pointer; font:600 11px/1 Hind,system-ui,sans-serif; letter-spacing:.02em; color:#6F8CA3;
+                 padding:6px 9px; border-radius:99px; -webkit-tap-highlight-color:transparent; }
+  #mini button:hover { color:#0B3D5C; }
+  #mini button.on { color:#0B3D5C; background:#fff; box-shadow:0 1px 3px rgba(0,60,120,.12); }
+  #mini .shape { position:absolute; top:10px; left:12px; background:rgba(255,255,255,.55); border-radius:99px; padding:2px; }
+  #mini .scale { position:absolute; left:14px; bottom:44px; font:500 10px/1.2 Hind,system-ui,sans-serif; color:#6F8CA3; }
+  #mini .scale i { display:block; width:92px; height:4px; border-radius:2px; margin-bottom:3px;
+                   background:linear-gradient(90deg,#4de6ff,#1438d9 38%,#c9d6df 38%,#c9d6df 62%,#db1a0d 62%,#ffed38); }
+  #mini .scale span { display:flex; justify-content:space-between; width:92px; }
+  #mini .timeline { position:absolute; left:12px; right:12px; bottom:10px; display:flex; align-items:center; gap:10px; }
+  #mini .play { width:26px; height:26px; padding:0; display:grid; place-items:center; border-radius:50%;
+                background:rgba(255,255,255,.8); color:#1273B5; box-shadow:0 1px 3px rgba(0,60,120,.14); }
+  #mini .play svg { width:10px; height:10px; fill:currentColor; }
+  #mini input[type=range] { flex:1; min-width:0; height:16px; margin:0; background:none; accent-color:#1273B5;
+                            -webkit-appearance:none; appearance:none; cursor:pointer; }
+  #mini input[type=range]::-webkit-slider-runnable-track { height:3px; border-radius:2px; background:#CFE1EE; }
+  #mini input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; margin-top:-4px;
+                            border-radius:50%; background:#1273B5; border:2px solid #fff; box-shadow:0 1px 2px rgba(0,60,120,.25); }
+  #mini input[type=range]::-moz-range-track { height:3px; border-radius:2px; background:#CFE1EE; }
+  #mini input[type=range]::-moz-range-thumb { width:8px; height:8px; border-radius:50%; background:#1273B5; border:2px solid #fff; }
+  #mini .when { font:600 11px/1 Hind,system-ui,sans-serif; color:#6F8CA3; min-width:44px; text-align:right; }
+  #mini .when button { padding:5px 0 5px 6px; }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind:wght@500;600&display=swap" rel="stylesheet">
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
@@ -54,6 +82,18 @@
   <div>
     <div class="stage">
       <div id="brain"></div>
+      <div id="mini">
+        <div class="shape"><button id="m-surface" title="Smooth out the folds to see inside them">Inflate</button></div>
+        <div class="views">
+          <button data-mview="left" class="on">Left</button><button data-mview="right">Right</button><button data-mview="top">Top</button>
+        </div>
+        <div class="scale"><i></i><span><b id="m-lo" style="font-weight:500">−</b><b id="m-hi" style="font-weight:500">+</b></span>predicted response</div>
+        <div class="timeline">
+          <button class="play" id="m-play" aria-label="Play through the take"><svg viewBox="0 0 10 10"><path id="m-icon" d="M2 1l7 4-7 4z"/></svg></button>
+          <input id="m-time" type="range" min="0" max="0" value="0" step="1" aria-label="Moment in the take">
+          <span class="when" id="m-when">whole take</span>
+        </div>
+      </div>
       <div class="bar">
         <button data-view="left" class="on">Left</button><button data-view="right">Right</button>
         <button data-view="top">Top</button><button data-view="front">Front</button><button data-view="back">Back</button>
@@ -92,7 +132,11 @@ const inline = (id) => { const t = $(id).textContent.trim(); return t ? JSON.par
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const mesh = inline('neuro-mesh') || await (await fetch(new URL('./fsaverage5_mesh.json', import.meta.url))).json();
-const viewer = createBrainViewer($('brain'), mesh);
+const embed = document.body.classList.contains('embed');
+const viewer = createBrainViewer($('brain'), mesh, embed
+  ? { theme: 'light', legend: false, autoRotate: true,
+      onScale: (v) => { $('m-lo').textContent = `−${v.toFixed(2)}`; $('m-hi').textContent = `+${v.toFixed(2)}`; } }
+  : {});
 window.brainViewer = viewer;
 let info = { frames: 0, frameT: [], frameSeconds: 1 };
 
@@ -110,7 +154,7 @@ function showFrame(i) {
 function render(result) {
   if (result.brain) {
     info = viewer.setBrain(result.brain);
-    $('time').max = Math.max(0, info.frames - 1);
+    $('time').max = $('m-time').max = Math.max(0, info.frames - 1);
     showFrame(null);
   }
   const k = result.ranking;
@@ -159,6 +203,34 @@ $('time').addEventListener('input', (e) => { viewer.pause(); $('play').textConte
 $('threshold').addEventListener('input', (e) => {
   viewer.setThreshold(e.target.value / 100); $('thr').textContent = +e.target.value ? `below ${e.target.value}%` : 'show all';
 });
+
+// Embedded view: the same actions on the small overlay controls.
+if (embed) {
+  const PLAY = 'M2 1l7 4-7 4z', PAUSE = 'M2 1h2.4v8H2zM5.6 1H8v8H5.6z';
+  const FAR = 405;  // a little further back than the full page, so the brain clears the overlays
+  viewer.setView('left', FAR);
+  const when = (i) => { const t = info.frameT[i] ?? i * info.frameSeconds; return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; };
+  const stop = () => { viewer.pause(); $('m-icon').setAttribute('d', PLAY); };
+  const whole = () => { stop(); viewer.setFrame(null); $('m-time').value = 0; $('m-when').textContent = 'whole take'; };
+  const moment = (i) => { $('m-when').innerHTML = `${when(i)} <button id="m-all" title="Back to the whole take">×</button>`; $('m-all').onclick = whole; };
+  // a slow turn until the first touch, then the brain is the user's to move
+  $('brain').addEventListener('pointerdown', () => viewer.setAutoRotate(false), { once: true });
+  document.querySelectorAll('[data-mview]').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-mview]').forEach((x) => x.classList.toggle('on', x === b));
+    viewer.setAutoRotate(false); viewer.setView(b.dataset.mview, FAR);
+  }));
+  $('m-surface').addEventListener('click', (e) => {
+    const on = e.target.classList.toggle('on');
+    viewer.setSurface(on ? 'inflated' : 'pial');
+  });
+  $('m-play').addEventListener('click', () => {
+    if (viewer.playing) return stop();
+    if (!info.frames) return;
+    viewer.play((i) => { $('m-time').value = i; moment(i); });
+    moment(+$('m-time').value); $('m-icon').setAttribute('d', PAUSE);
+  });
+  $('m-time').addEventListener('input', (e) => { stop(); viewer.setFrame(+e.target.value); moment(+e.target.value); });
+}
 
 // Where the result comes from: inlined JSON, ?result=<url>, or postMessage({type:'neuro-result', result})
 const embedded = inline('neuro-result');

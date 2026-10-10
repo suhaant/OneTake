@@ -33,7 +33,10 @@ function percentileAbs(values, p) {
 }
 
 export function createBrainViewer(container, mesh, options = {}) {
-  const opts = { threshold: 0.25, autoRotate: false, background: null, onHover: null, ...options };
+  // theme: 'dark' | 'light' (cortex shade and tooltip). legend: false hides the built-in colour bar;
+  // onScale(vmax) then reports the scale so the host page can draw its own.
+  const opts = { threshold: 0.25, autoRotate: false, background: null, onHover: null, theme: 'dark', legend: true, onScale: null, ...options };
+  const light = opts.theme === 'light';
   const n = mesh.n_vertices;
   const pial = new Float32Array(bytes(mesh.pial_f32).buffer);
   const inflated = new Float32Array(bytes(mesh.inflated_f32).buffer);
@@ -54,7 +57,7 @@ export function createBrainViewer(container, mesh, options = {}) {
   controls.enableDamping = true;
   controls.autoRotate = opts.autoRotate;
   controls.autoRotateSpeed = 1.2;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3f4a, 1.6));
+  scene.add(new THREE.HemisphereLight(0xffffff, light ? 0x8fa3b5 : 0x3a3f4a, light ? 1.9 : 1.6));
   const headlight = new THREE.DirectionalLight(0xffffff, 1.9);
   camera.add(headlight);
   scene.add(camera);
@@ -79,7 +82,8 @@ export function createBrainViewer(container, mesh, options = {}) {
   function paint() {
     const col = geometry.attributes.color.array;
     for (let i = 0; i < n; i++) {
-      const shade = 0.56 - 0.20 * (sulc[i] / 127);          // sulci darker than gyri
+      const base = light ? 0.80 : 0.56;
+      const shade = base - (light ? 0.17 : 0.20) * (sulc[i] / 127);   // sulci darker than gyri
       let r = shade, g = shade, b = shade * 1.03;
       const v = current[i], a = Math.abs(v) / vmax;
       if (a > threshold) {
@@ -89,7 +93,7 @@ export function createBrainViewer(container, mesh, options = {}) {
         const cr = ramp[0][0] + (ramp[1][0] - ramp[0][0]) * t;
         const cg = ramp[0][1] + (ramp[1][1] - ramp[0][1]) * t;
         const cb = ramp[0][2] + (ramp[1][2] - ramp[0][2]) * t;
-        const k = 0.80 + 0.20 * (shade / 0.56);              // keep a hint of the folds under the colour
+        const k = 0.80 + 0.20 * (shade / base);              // keep a hint of the folds under the colour
         r = r + (cr * k - r) * mix; g = g + (cg * k - g) * mix; b = b + (cb * k - b) * mix;
       }
       col[3 * i] = toLinear(r); col[3 * i + 1] = toLinear(g); col[3 * i + 2] = toLinear(b);
@@ -108,8 +112,10 @@ export function createBrainViewer(container, mesh, options = {}) {
   // ---- legend ----
   const legend = document.createElement('div');
   legend.style.cssText = 'position:absolute;left:12px;bottom:10px;font:11px/1.3 system-ui,sans-serif;color:inherit;opacity:.9;pointer-events:none';
-  container.appendChild(legend);
+  if (opts.legend) container.appendChild(legend);
   function drawLegend() {
+    opts.onScale && opts.onScale(vmax);
+    if (!opts.legend) return;
     const stop = (c) => `rgb(${c.map((x) => Math.round(x * 255)).join(',')})`;
     const th = Math.round(threshold * 50);
     legend.innerHTML =
@@ -120,7 +126,7 @@ export function createBrainViewer(container, mesh, options = {}) {
 
   // ---- hover: region name and exact value under the pointer ----
   const tip = document.createElement('div');
-  tip.style.cssText = 'position:absolute;display:none;padding:4px 8px;border-radius:6px;background:rgba(15,17,22,.88);color:#fff;font:12px system-ui,sans-serif;pointer-events:none;white-space:nowrap;z-index:2';
+  tip.style.cssText = `position:absolute;display:none;padding:4px 8px;border-radius:6px;background:${light ? 'rgba(255,255,255,.94)' : 'rgba(15,17,22,.88)'};color:${light ? '#0B3D5C' : '#fff'};box-shadow:0 2px 10px rgba(0,60,120,.18);font:12px system-ui,sans-serif;pointer-events:none;white-space:nowrap;z-index:2`;
   container.appendChild(tip);
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
   function onMove(e) {
@@ -150,8 +156,13 @@ export function createBrainViewer(container, mesh, options = {}) {
   renderer.domElement.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
 
   // ---- camera ----
+  // In a tall, narrow container the brain is wider than the view, so the camera backs away.
+  const narrow = () => Math.max(1, 1.3 / camera.aspect);
+  let fitted = 1;
   function setView(name, distance = 430) {
     const d = VIEWS[name] || VIEWS.left;
+    fitted = narrow();
+    distance *= fitted;
     // brain (x, y, z) -> three (x, z, -y) under the mesh rotation above
     camera.position.set(d[0] * distance, d[2] * distance, -d[1] * distance);
     camera.up.set(0, 1, 0);
@@ -171,6 +182,9 @@ export function createBrainViewer(container, mesh, options = {}) {
     renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    const fit = narrow();
+    camera.position.multiplyScalar(fit / fitted);   // keeps the user's rotation, changes only the distance
+    fitted = fit;
   }
   const observer = new ResizeObserver(resize);
   observer.observe(container);
@@ -235,7 +249,7 @@ export function createBrainViewer(container, mesh, options = {}) {
     dispose() {
       disposed = true; this.pause(); observer.disconnect();
       geometry.dispose(); material.dispose(); renderer.dispose();
-      container.removeChild(renderer.domElement); container.removeChild(legend); container.removeChild(tip);
+      container.removeChild(renderer.domElement); legend.remove(); tip.remove();
     },
   };
 }

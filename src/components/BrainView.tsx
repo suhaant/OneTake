@@ -6,7 +6,7 @@ export default function BrainView({ url }: { url: string }) {
   return (
     <WebView
       source={{ uri: url }}
-      style={{ flex: 1, backgroundColor: '#0d0f14' }}
+      style={{ flex: 1, backgroundColor: '#F2F9FE' }}
       originWhitelist={['*']}
       javaScriptEnabled
       domStorageEnabled
