@@ -1,5 +1,6 @@
 /** Client for the FastAPI scoring backend (see /backend). Set EXPO_PUBLIC_BACKEND_URL to its origin. */
 import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
 import type { Moment, TakeResult } from './data/mock';
 import { BACKEND_URL as BASE } from './config';
 
@@ -58,10 +59,11 @@ export async function fetchHistory(userId: string, days = 30): Promise<HistoryRo
 
 async function recordingPart(uri: string): Promise<{ part: Blob; name: string }> {
   if (Platform.OS === 'web') return { part: await (await fetch(uri)).blob(), name: 'take.webm' };
-  const ext = /\.(mov|mp4|webm)$/i.exec(uri)?.[1].toLowerCase() ?? 'mp4';
-  const type = ext === 'mov' ? 'video/quicktime' : `video/${ext}`;
-  // React Native's FormData takes a file descriptor in place of a Blob.
-  return { part: { uri, name: `take.${ext}`, type } as unknown as Blob, name: `take.${ext}` };
+  // Expo's fetch rejects React Native's { uri, name, type } descriptor ("Unsupported FormDataPart
+  // implementation"); it wants a Blob or an expo-file-system File, which it reads with bytes().
+  // The File's own name keeps the recording's extension, which is what the backend checks.
+  const file = new File(uri);
+  return { part: file as unknown as Blob, name: file.name };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

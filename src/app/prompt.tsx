@@ -24,6 +24,11 @@ export default function Prompt() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    console.log('[onetake] prompt mounted');
+    return () => console.log('[onetake] prompt unmounted');
+  }, []);
+
+  useEffect(() => {
     if (cam && !cam.granted && cam.canAskAgain) requestCam();
     if (mic && !mic.granted && mic.canAskAgain) requestMic();
   }, [cam, mic, requestCam, requestMic]);
@@ -38,6 +43,7 @@ export default function Prompt() {
     if (recording || !camera.current) return;
     setRecording(true);
     setLeft(TAKE_SECONDS);
+    console.log('[onetake] recording started');
     try {
       const video = await camera.current.recordAsync({ maxDuration: TAKE_SECONDS });
       console.log('[onetake] recorded', video?.uri ?? '(no uri)');
@@ -49,7 +55,10 @@ export default function Prompt() {
     router.replace('/thinking');
   };
 
-  const stop = () => camera.current?.stopRecording();
+  const stop = () => {
+    console.log('[onetake] stop pressed');
+    camera.current?.stopRecording();
+  };
 
   const granted = cam?.granted && mic?.granted;
   const mm = `0:${left.toString().padStart(2, '0')}`;
@@ -81,7 +90,7 @@ export default function Prompt() {
       {/* viewfinder */}
       <View style={[styles.finder, { top: insets.top + 324 }]}>
         {granted ? (
-          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror onCameraReady={() => setReady(true)} />
+          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror onCameraReady={() => { console.log('[onetake] camera ready'); setReady(true); }} />
         ) : (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1C2833', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
             <Text style={styles.permText}>OneTake needs the camera and mic to score your take.</Text>
