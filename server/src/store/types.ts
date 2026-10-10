@@ -30,6 +30,9 @@ export type Challenge = {
 
 export type CoachMessage = { role: 'user' | 'coach'; body: string; at: string };
 
+/** One row of today's board: a user who has taken today's prompt. */
+export type BoardEntry = { userId: string; name: string; score: number };
+
 /** Rows are passed to the coach as-is, so whatever columns the scoring pipeline writes show up without changes here. */
 export type Row = Record<string, unknown>;
 
@@ -51,6 +54,8 @@ export interface Store {
   history(userId: string, limit: number): Promise<Row[]>;
   /** Any other rows about the user the coach should see (account row, rating, league...). */
   extras(userId: string): Promise<Record<string, Row[]>>;
+  /** Everyone who has taken today's prompt, best score first, each in their own calendar day. */
+  todaysBoard(limit: number): Promise<BoardEntry[]>;
 
   addFriend(userId: string, phone: string, name: string): Promise<void>;
   linkFriend(userId: string, phone: string, friendUserId: string): Promise<void>;

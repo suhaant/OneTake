@@ -21,16 +21,21 @@ class DeliveryEvaluation(BaseModel):
 
 
 def extract_wav(video_path: str | Path, destination: str | Path) -> Path:
-    """Extract a standard PCM WAV with macOS's built-in audio converter."""
+    """Extract a standard PCM WAV: macOS's built-in afconvert, or FFmpeg anywhere else."""
     destination = Path(destination)
-    command = ["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(video_path), str(destination)]
-    try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
-    except FileNotFoundError as exc:
-        raise RuntimeError("Audio conversion requires macOS afconvert or FFmpeg.") from exc
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"Could not extract audio from video: {exc.stderr.strip()}") from exc
-    return destination
+    commands = [
+        ["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(video_path), str(destination)],
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path), "-vn", "-ac", "1", "-ar", "44100", "-f", "wav", str(destination)],
+    ]
+    for command in commands:
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            return destination
+        except FileNotFoundError:
+            continue  # this converter is not installed; try the next one
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(f"Could not extract audio from video: {exc.stderr.strip()}") from exc
+    raise RuntimeError("Audio conversion requires macOS afconvert or FFmpeg on PATH (winget install ffmpeg / brew install ffmpeg).")
 
 
 def _wait_until_active(client: object, uploaded_file: object) -> object:

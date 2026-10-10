@@ -116,6 +116,41 @@ server.post('/users/:id/attempts', async (c) => {
   return c.json(stored ? await onAttemptCompleted(p.userId, stored.score) : { notified: 0 });
 });
 
+// ---- leaderboard -----------------------------------------------------------
+
+/**
+ * Today's board. Global is everyone who has taken today's prompt; friends is the caller's
+ * friends who have. Names come from this server's profiles, scores from the backend's rows.
+ */
+server.get('/leaderboard', async (c) => {
+  const scope = c.req.query('scope') === 'friends' ? 'friends' : 'global';
+  const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 100);
+  const userId = str(c.req.query('userId') ?? '');
+
+  let entries: { userId: string; name: string; score: number }[];
+  if (scope === 'friends') {
+    if (!userId) return c.json({ error: 'user_required' }, 400);
+    const friends = await store.friendsOf(userId);
+    const [mine, ...theirs] = await Promise.all([
+      store.getProfile(userId).then(async (p) => (p ? { p, a: await store.todaysAttempt(userId) } : null)),
+      ...friends.filter((f) => f.userId).map(async (f) => ({ f, a: await store.todaysAttempt(f.userId!) })),
+    ]);
+    entries = theirs.filter((x) => x.a).map((x) => ({ userId: x.f.userId!, name: x.f.name, score: x.a!.score }));
+    if (mine?.a) entries.push({ userId, name: mine.p.name || 'You', score: mine.a.score });
+    entries.sort((x, y) => y.score - x.score);
+  } else {
+    entries = await store.todaysBoard(limit);
+  }
+  const withStreaks = await Promise.all(
+    entries.slice(0, limit).map(async (e, i) => {
+      const p = await store.getProfile(e.userId);
+      return { rank: i + 1, ...e, name: e.name || 'Anonymous', streak: p ? await store.streak(p.userId, p.tz) : 0 };
+    }),
+  );
+  const me = userId ? withStreaks.find((e) => e.userId === userId) ?? null : null;
+  return c.json({ scope, total: entries.length, entries: withStreaks, me });
+});
+
 // ---- challenges ------------------------------------------------------------
 
 server.post('/challenges', async (c) => {

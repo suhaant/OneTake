@@ -125,6 +125,16 @@ export function tigerStore(connectionString: string): Store {
       );
       return { weeklyAverages: weekly };
     },
+    async todaysBoard(limit) {
+      const rows = await takes(
+        `select p.user_id, p.name, max(e.overall) as score
+           from score_events e join messaging_profiles p on p.user_id = e.user_id
+          where e.is_video and (e.time at time zone p.tz)::date = (now() at time zone p.tz)::date
+          group by p.user_id, p.name order by score desc limit $1`,
+        [limit],
+      );
+      return rows.map((r) => ({ userId: String(r.user_id), name: String(r.name), score: Math.round(Number(r.score)) }));
+    },
 
     async addFriend(userId, phone, name) {
       await q(

@@ -9,14 +9,13 @@ import Panda from '../components/Panda';
 import { SpeechBubble } from '../components/Glass';
 import { Back } from '../components/Icons';
 import { colors, fonts } from '../theme';
-import { todaysPrompt } from '../data/mock';
 import { useApp } from '../store';
 
 const TAKE_SECONDS = 30;
 
 export default function Prompt() {
   const insets = useSafeAreaInsets();
-  const { setVideoUri, promptText } = useApp();
+  const { setVideoUri, promptText, takers } = useApp();
   const [cam, requestCam] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
@@ -72,7 +71,9 @@ export default function Prompt() {
 
       <View style={[styles.promptWrap, { top: insets.top + 176 }]}>
         <Text style={styles.prompt}>{promptText}</Text>
-        <Text style={styles.promptSub}>{todaysPrompt.takers.toLocaleString()} people have taken this one today.</Text>
+        <Text style={styles.promptSub}>
+          {takers === 0 ? 'Be the first to take this one today.' : takers === 1 ? '1 person has taken this one today.' : `${takers.toLocaleString()} people have taken this one today.`}
+        </Text>
       </View>
 
       {/* viewfinder */}

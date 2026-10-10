@@ -1,5 +1,5 @@
 /** Client for the OneTake server (see /server). Set EXPO_PUBLIC_API_URL to its https origin. */
-const BASE = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787').replace(/\/$/, '');
+import { API_URL as BASE } from './config';
 
 export type Persona = 'mentor' | 'drill' | 'hype';
 export type OptIn = 'none' | 'pending' | 'active' | 'stopped';
@@ -19,6 +19,9 @@ export type Friend = { name: string; phone: string | null; joined: boolean; comp
 
 /** A challenge the server has prepared; the user sends `message` from their own number. */
 export type ChallengeDraft = { id: string; toPhone: string; message: string; url: string };
+
+export type BoardEntry = { rank: number; userId: string; name: string; score: number; streak: number };
+export type Board = { scope: 'global' | 'friends'; total: number; entries: BoardEntry[]; me: BoardEntry | null };
 
 export class ApiError extends Error {
   constructor(public code: string) {
@@ -55,6 +58,8 @@ export const api = {
   createChallenge: (fromUserId: string, toPhone: string, toName: string) => call<ChallengeDraft>('POST', '/challenges', { fromUserId, toPhone, toName }),
   markChallengeSent: (id: string) => call<{ ok: true }>('POST', `/challenges/${id}/sent`),
   acceptChallenge: (id: string, userId: string) => call<{ from: string | null }>('POST', `/challenges/${id}/accept`, { userId }),
+  leaderboard: (scope: 'global' | 'friends', userId?: string, limit = 50) =>
+    call<Board>('GET', `/leaderboard?scope=${scope}&limit=${limit}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`),
 };
 
 const MESSAGES: Record<string, string> = {

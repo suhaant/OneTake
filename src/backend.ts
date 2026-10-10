@@ -1,16 +1,16 @@
 /** Client for the FastAPI scoring backend (see /backend). Set EXPO_PUBLIC_BACKEND_URL to its origin. */
 import { Platform } from 'react-native';
 import type { Moment, TakeResult } from './data/mock';
-
-const BASE = (process.env.EXPO_PUBLIC_BACKEND_URL ?? '').replace(/\/$/, '');
-
-/** Without a backend URL the app stays on the built-in sample result. */
-export const backendEnabled = Boolean(BASE);
+import { BACKEND_URL as BASE } from './config';
 
 const POLL_MS = 2000;
 const TIMEOUT_MS = 150_000;
 
+/** The backend could not be reached at all (not running, wrong host). Scoring errors are plain Errors. */
+export class BackendUnreachable extends Error {}
+
 type Submission = {
+  submission_id: string;
   status: 'processing' | 'completed' | 'failed';
   error?: string;
   overall_score: number;
@@ -26,18 +26,33 @@ type Submission = {
   };
 };
 
+export type HistoryRow = { submission_id: string; time: string; overall: number };
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`);
+  } catch {
+    throw new BackendUnreachable(`Cannot reach ${BASE}`);
+  }
   if (!res.ok) throw new Error(`${path} returned ${res.status}`);
   return (await res.json()) as T;
 }
 
 export async function fetchDailyPrompt(): Promise<string | null> {
-  if (!backendEnabled) return null;
   try {
     return (await getJson<{ prompt: string }>('/api/daily-prompt')).prompt;
   } catch {
     return null;
+  }
+}
+
+/** The user's scored takes in the last `days`, oldest first. Empty when the backend is down. */
+export async function fetchHistory(userId: string, days = 30): Promise<HistoryRow[]> {
+  try {
+    return (await getJson<{ history: HistoryRow[] }>(`/api/users/${encodeURIComponent(userId)}/progress?days=${days}`)).history;
+  } catch {
+    return [];
   }
 }
 
@@ -56,13 +71,13 @@ async function standing(userId: string | undefined, score: number) {
   const fallback = { rank: 1, total: 1, delta: 0 };
   if (!userId) return fallback;
   try {
-    const [board, progress] = await Promise.all([
+    const [board, history] = await Promise.all([
       getJson<{ entries: { user_id: string; best_score: number }[] }>('/api/leaderboard?limit=100'),
-      getJson<{ history: { overall: number }[] }>(`/api/users/${encodeURIComponent(userId)}/progress?days=30`),
+      fetchHistory(userId),
     ]);
     const index = board.entries.findIndex((e) => e.user_id === userId);
     const rank = index >= 0 ? index + 1 : board.entries.filter((e) => e.best_score > score).length + 1;
-    const previous = progress.history.at(-2)?.overall;
+    const previous = history.at(-2)?.overall;
     return { rank, total: Math.max(board.entries.length, rank), delta: previous == null ? 0 : Math.round(score - previous) };
   } catch {
     return fallback;
@@ -102,6 +117,13 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
   };
 }
 
+/** A take that was scored earlier (e.g. before the app restarted), in the shape the results screen draws. */
+export async function fetchTakeResult(submissionId: string, userId?: string): Promise<TakeResult | null> {
+  const s = await getJson<Submission>(`/api/submissions/${submissionId}`);
+  if (s.status !== 'completed') return null;
+  return toResult(s, await standing(userId, s.overall_score));
+}
+
 /** Uploads the recording, waits for scoring, and returns it in the shape the results screen draws. */
 export async function scoreTake(videoUri: string, prompt: string, userId?: string): Promise<TakeResult> {
   const { part, name } = await recordingPart(videoUri);
@@ -110,7 +132,12 @@ export async function scoreTake(videoUri: string, prompt: string, userId?: strin
   form.append('prompt', prompt);
   if (userId) form.append('user_id', userId);
 
-  const res = await fetch(`${BASE}/api/submissions`, { method: 'POST', body: form });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/submissions`, { method: 'POST', body: form });
+  } catch {
+    throw new BackendUnreachable(`Cannot reach ${BASE}`);
+  }
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
   const { submission_id } = (await res.json()) as { submission_id: string };
 

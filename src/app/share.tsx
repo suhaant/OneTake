@@ -11,7 +11,7 @@ import Panda from '../components/Panda';
 import ScoreRing from '../components/ScoreRing';
 import { Close, Envelope, Share } from '../components/Icons';
 import { colors, fonts, sky } from '../theme';
-import { mockResult, todaysPrompt } from '../data/mock';
+import { mockResult } from '../data/mock';
 import { useApp } from '../store';
 
 const CARD_W = 1080;
@@ -33,7 +33,7 @@ function MiniBar({ label, value }: { label: string; value: number }) {
 
 /** The 1080×1350 card, drawn at full size and scaled down to fit the screen. */
 function ScoreCard() {
-  const { result, streak, promptText } = useApp();
+  const { result, streak, promptText, totalTakes } = useApp();
   const r = result ?? mockResult;
   return (
     <View style={{ width: CARD_W, height: CARD_H, overflow: 'hidden' }}>
@@ -48,7 +48,7 @@ function ScoreCard() {
         <Text style={card.brandText}>OneTake</Text>
       </View>
       <Text style={card.day}>
-        Day {todaysPrompt.day} · {streak}-day streak
+        Take {Math.max(totalTakes, 1)} · {streak}-day streak
       </Text>
 
       <Text style={card.prompt}>{`"${promptText}"`}</Text>
