@@ -55,6 +55,15 @@ def health() -> dict[str, str]: return {"status": "ok"}
 def daily_prompt() -> dict[str, str]: return {"date": date.today().isoformat(), "prompt": DAILY_PROMPT, "rubric_version": "v2"}
 
 
+def pace_band(wpm: float) -> str:
+    """Comfortable conversational delivery sits around 130–170 words a minute."""
+    if wpm < 110: return "slow"
+    if wpm < 130: return "a bit slow"
+    if wpm <= 170: return "on target"
+    if wpm <= 190: return "a bit fast"
+    return "fast"
+
+
 def _process(submission_id: str, recording: str, prompt: str) -> None:
     try:
         recording_path = Path(recording)
@@ -69,12 +78,23 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
         audio["fillers_per_100_words"] = round(audio["fillers"] / max(int(audio["word_count"]), 1) * 100, 2)
         scores = {"fillers": filler_score(float(audio["fillers_per_100_words"])), "language": rubric_score((semantic.vocabulary + semantic.sentence_structure) / 2)}
         details = {"vocabulary": rubric_score(semantic.vocabulary), "sentence_structure": rubric_score(semantic.sentence_structure)}
-        feedback = {"strength": semantic.strengths[0], "improvement": semantic.weaknesses[0], "next_exercise": "Record another 30-second response with a clear opening, one supporting point, and conclusion."}
+        suggestions = list(semantic.suggestions)
+        feedback = {"strength": semantic.strengths[0], "improvement": semantic.weaknesses[0], "next_exercise": suggestions[0] if suggestions else "Record another 30-second response with a clear opening, one supporting point, and conclusion."}
+        breakdown = {
+            "words": int(audio["word_count"]), "duration_seconds": audio["duration_seconds"],
+            "pace": {"wpm": audio["wpm"], "band": pace_band(float(audio["wpm"]))},
+            "fillers": {"total": audio["fillers"], "verbal": int(audio["fillers"]) - semantic.contextual_fillers, "contextual": semantic.contextual_fillers, "per_100_words": audio["fillers_per_100_words"], "by_word": audio["filler_words"], "examples": semantic.filler_examples},
+            "vocabulary": {"rating": semantic.vocabulary, "score": details["vocabulary"], "level": semantic.vocabulary_level, "strong_words": semantic.strong_words, "weak_words": semantic.weak_words},
+            "structure": {"rating": semantic.sentence_structure, "score": details["sentence_structure"], "opening": semantic.opening, "support": semantic.support, "closing": semantic.closing},
+        }
         if is_video:
             delivery = evaluate_delivery(recording_path, prompt)
             scores.update({"eye_contact": rubric_score(delivery.eye_contact), "posture": rubric_score(delivery.posture), "body_language": rubric_score(delivery.body_language)})
-            feedback = {"strength": f"Content: {semantic.strengths[0]} Delivery: {delivery.strengths[0]}", "improvement": f"Content: {semantic.weaknesses[0]} Delivery: {delivery.improvements[0]}", "next_exercise": "Record another 30-second response with a clear opening, one supporting point, conclusion, and your face and upper body in frame.", "content_notes": {"strengths": semantic.strengths, "weaknesses": semantic.weaknesses}, "delivery_notes": {"strengths": delivery.strengths, "improvements": delivery.improvements}}
-        result = {"scoring_version": "v2-gemini-video" if is_video else "v2-audio-content", "overall_score": overall_score(scores, int(audio["word_count"])), "categories": category_scores(scores), "metrics": scores, "metric_details": details, "unavailable_metrics": [] if is_video else list(VISUAL_METRICS), "transcript": transcript.to_dict(), "audio": audio, "feedback": feedback}
+            breakdown["delivery"] = {"eye_contact": scores["eye_contact"], "posture": scores["posture"], "body_language": scores["body_language"]}
+            # Content rewrites first (they move the score most), then the top delivery change.
+            suggestions = suggestions[:3] + delivery.improvements[:1]
+            feedback = {"strength": f"Content: {semantic.strengths[0]} Delivery: {delivery.strengths[0]}", "improvement": f"Content: {semantic.weaknesses[0]} Delivery: {delivery.improvements[0]}", "next_exercise": suggestions[0], "content_notes": {"strengths": semantic.strengths, "weaknesses": semantic.weaknesses}, "delivery_notes": {"strengths": delivery.strengths, "improvements": delivery.improvements}}
+        result = {"scoring_version": "v2.1-gemini-video" if is_video else "v2.1-audio-content", "overall_score": overall_score(scores, int(audio["word_count"])), "categories": category_scores(scores), "metrics": scores, "metric_details": details, "unavailable_metrics": [] if is_video else list(VISUAL_METRICS), "transcript": transcript.to_dict(), "audio": audio, "feedback": feedback, "breakdown": breakdown, "suggestions": suggestions}
         store.complete(submission_id, result)
     except Exception as exc:
         logger.exception("Submission %s failed", submission_id)

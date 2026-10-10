@@ -29,6 +29,49 @@ function Bar({ label, weight, value }: { label: string; weight: string; value: n
   );
 }
 
+function Stat({ label, value, note, tone = 'navy' }: { label: string; value: string; note?: string; tone?: 'navy' | 'green' | 'orange' }) {
+  const color = tone === 'green' ? colors.greenText : tone === 'orange' ? colors.orange : colors.navy;
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      {note ? <Text style={styles.statNote}>{note}</Text> : null}
+    </View>
+  );
+}
+
+function Chips({ items, tone }: { items: string[]; tone: 'green' | 'orange' | 'grey' }) {
+  if (!items.length) return null;
+  const bg = tone === 'green' ? colors.greenLight : tone === 'orange' ? '#FFE3CC' : '#E9F3FA';
+  const fg = tone === 'green' ? colors.greenText : tone === 'orange' ? colors.orange : colors.text2;
+  return (
+    <View style={styles.chips}>
+      {items.map((t) => (
+        <View key={t} style={[styles.chip, { backgroundColor: bg }]}>
+          <Text style={[styles.chipText, { color: fg }]}>{t}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function MiniBar({ label, rating }: { label: string; rating: number }) {
+  return (
+    <View style={{ flex: 1, gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={styles.miniLabel}>{label}</Text>
+        <Text style={styles.miniValue}>{rating}/5</Text>
+      </View>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${((rating - 1) / 4) * 100}%`, backgroundColor: rating >= 4 ? colors.green : rating <= 2 ? colors.orange : colors.blue }]} />
+      </View>
+    </View>
+  );
+}
+
+const LEVELS = { basic: 'Basic', everyday: 'Everyday', varied: 'Varied', precise: 'Precise' } as const;
+const fmtDuration = (s: number) => `${Math.floor(s / 60)}:${Math.round(s % 60).toString().padStart(2, '0')}`;
+
 function AttentionCurve({ data, width }: { data: number[]; width: number }) {
   const h = 120;
   const top = 20;
@@ -119,6 +162,67 @@ export default function Results() {
             <Bar label="Content" weight="25%" value={r.content} />
           </View>
 
+          {r.details && (
+            <>
+              <View style={styles.hr} />
+              <Text style={styles.section}>The numbers</Text>
+              <View style={styles.statGrid}>
+                <Stat label="Pace" value={`${r.details.pace.wpm} wpm`} note={r.details.pace.band} tone={r.details.pace.band === 'on target' ? 'green' : r.details.pace.band === 'fast' || r.details.pace.band === 'slow' ? 'orange' : 'navy'} />
+                <Stat label="Fillers" value={`${r.details.fillers.total}`} note={`${r.details.fillers.per100} per 100 words`} tone={r.details.fillers.per100 <= 2 ? 'green' : r.details.fillers.per100 >= 5 ? 'orange' : 'navy'} />
+                <Stat label="Words" value={`${r.details.words}`} note={`in ${fmtDuration(r.details.duration)}`} />
+                {r.details.delivery ? <Stat label="Eye contact" value={`${r.details.delivery.eyeContact}`} note="out of 100" tone={r.details.delivery.eyeContact >= 75 ? 'green' : r.details.delivery.eyeContact <= 25 ? 'orange' : 'navy'} /> : <Stat label="Vocabulary" value={`${r.details.vocabulary.score}`} note="out of 100" />}
+              </View>
+
+              <Text style={styles.subhead}>Filler words</Text>
+              {r.details.fillers.total === 0 ? (
+                <Text style={styles.detailBody}>None. Clean take.</Text>
+              ) : (
+                <>
+                  <Chips items={[...r.details.fillers.byWord.map((f) => `${f.word} ×${f.count}`), ...r.details.fillers.examples.map((e) => `"${e}"`)]} tone="orange" />
+                  <Text style={styles.detailBody}>Fluent speakers sit near 1–2 per 100 words. Each one is a spot for a half-second pause instead.</Text>
+                </>
+              )}
+
+              <Text style={styles.subhead}>Vocabulary</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.levelPill}>
+                  <Text style={styles.levelText}>{LEVELS[r.details.vocabulary.level]}</Text>
+                </View>
+                <Text style={styles.detailInline}>{r.details.vocabulary.score} / 100</Text>
+              </View>
+              {r.details.vocabulary.strongWords.length > 0 && (
+                <>
+                  <Text style={styles.detailCaption}>Worked</Text>
+                  <Chips items={r.details.vocabulary.strongWords} tone="green" />
+                </>
+              )}
+              {r.details.vocabulary.weakWords.length > 0 && (
+                <>
+                  <Text style={styles.detailCaption}>Vague, swap next time</Text>
+                  <Chips items={r.details.vocabulary.weakWords} tone="orange" />
+                </>
+              )}
+
+              <Text style={styles.subhead}>Structure</Text>
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                <MiniBar label="Opening" rating={r.details.structure.opening} />
+                <MiniBar label="Point" rating={r.details.structure.support} />
+                <MiniBar label="Close" rating={r.details.structure.closing} />
+              </View>
+
+              {r.details.delivery && (
+                <>
+                  <Text style={styles.subhead}>Delivery</Text>
+                  <View style={{ gap: 12 }}>
+                    <Bar label="Eye contact" weight="25%" value={r.details.delivery.eyeContact} />
+                    <Bar label="Posture" weight="15%" value={r.details.delivery.posture} />
+                    <Bar label="Gestures" weight="15%" value={r.details.delivery.gestures} />
+                  </View>
+                </>
+              )}
+            </>
+          )}
+
           <View style={styles.hr} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -150,6 +254,19 @@ export default function Results() {
           <Text style={styles.section}>Focus for tomorrow</Text>
           <Text style={styles.focusTitle}>{r.focusTitle}</Text>
           <Text style={styles.focusBody}>{r.focusBody}</Text>
+          {r.suggestions && r.suggestions.length > 0 && (
+            <View style={{ marginTop: 18, gap: 12 }}>
+              <Text style={styles.subheadTight}>Try next time</Text>
+              {r.suggestions.map((text, n) => (
+                <View key={n} style={styles.suggestion}>
+                  <View style={styles.suggestionNum}>
+                    <Text style={styles.suggestionNumText}>{n + 1}</Text>
+                  </View>
+                  <Text style={styles.suggestionText}>{text}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           <View style={{ marginTop: 16, gap: 10 }}>
             {r.also.map((a) => (
               <View key={a.label} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -209,4 +326,25 @@ const styles = StyleSheet.create({
   focusBody: { marginTop: 8, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.text2 },
   alsoLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.text2 },
   alsoValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.navy },
+  statGrid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  stat: { width: '48%', flexGrow: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.sheet, borderWidth: 1, borderColor: colors.hair },
+  statLabel: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted },
+  statValue: { marginTop: 4, fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
+  statNote: { marginTop: 2, fontFamily: fonts.medium, fontSize: 12, color: colors.text2 },
+  subhead: { marginTop: 22, marginBottom: 8, fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
+  subheadTight: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
+  detailBody: { marginTop: 8, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.text2 },
+  detailInline: { fontFamily: fonts.bold, fontSize: 15, color: colors.navy },
+  detailCaption: { marginTop: 10, fontFamily: fonts.semi, fontSize: 12, color: colors.muted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  chip: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999 },
+  chipText: { fontFamily: fonts.semi, fontSize: 13 },
+  levelPill: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.blue },
+  levelText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff', letterSpacing: 0.3 },
+  miniLabel: { fontFamily: fonts.semi, fontSize: 13, color: colors.navy },
+  miniValue: { fontFamily: fonts.bold, fontSize: 13, color: colors.muted },
+  suggestion: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  suggestionNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  suggestionNumText: { fontFamily: fonts.bold, fontSize: 13, color: colors.greenText },
+  suggestionText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.navy },
 });

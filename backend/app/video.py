@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import subprocess
 import time
 from pathlib import Path
@@ -11,6 +12,9 @@ from .config import settings
 from .gemini import get_gemini_client
 
 
+logger = logging.getLogger(__name__)
+
+
 class DeliveryEvaluation(BaseModel):
     """Observable delivery ratings; Gemini should not infer emotions or identity."""
     eye_contact: int = Field(ge=1, le=5)
@@ -18,6 +22,23 @@ class DeliveryEvaluation(BaseModel):
     body_language: int = Field(ge=1, le=5)
     strengths: list[str] = Field(min_length=1)
     improvements: list[str] = Field(min_length=1)
+
+
+def normalize_video(video_path: str | Path, destination: str | Path) -> Path:
+    """Re-encode for the evaluator: bakes in the rotation metadata phones record (Gemini ignores it and
+    sees the frames sideways or upside down), caps the height at 720p, and uses H.264 so the upload is a
+    few MB instead of tens. Returns the original path when FFmpeg is not installed."""
+    destination = Path(destination)
+    command = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path), "-vf", "scale=-2:'min(720,ih)'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(destination)]
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+        return destination
+    except FileNotFoundError:
+        logger.warning("ffmpeg not found; sending the original recording to Gemini (rotation metadata may be ignored)")
+        return Path(video_path)
+    except subprocess.CalledProcessError as exc:
+        logger.warning("ffmpeg could not normalize %s: %s", video_path, exc.stderr.strip())
+        return Path(video_path)
 
 
 def extract_wav(video_path: str | Path, destination: str | Path) -> Path:
@@ -51,13 +72,16 @@ def _wait_until_active(client: object, uploaded_file: object) -> object:
 
 def evaluate_delivery(video_path: str | Path, daily_prompt: str) -> DeliveryEvaluation:
     client = get_gemini_client()
-    uploaded_video = _wait_until_active(client, client.files.upload(file=str(video_path)))
+    video_path = Path(video_path)
+    normalized = normalize_video(video_path, video_path.with_name(f"{video_path.stem}.eval.mp4"))
+    uploaded_video = _wait_until_active(client, client.files.upload(file=str(normalized)))
     prompt = f"""Evaluate only observable presentation behaviors in this short video for the prompt: {daily_prompt}
 Return 1–5 integer ratings:
 - eye_contact: how consistently the speaker's gaze is directed at the camera lens (the audience). 1 mostly looking away or reading, 3 roughly half the time, 5 steady gaze with only natural brief breaks.
 - posture: 1 slouched, hunched, or swaying, 3 mostly upright with some slumping or shifting, 5 upright, shoulders square and open, stable throughout.
 - body_language: hand gestures. 1 hands hidden, frozen, or fidgeting, 3 occasional gestures loosely tied to the words, 5 purposeful, varied gestures that reinforce key points.
-Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. If the relevant body area is not visible, use 3 and state that limitation in improvements. Give concrete, timestamp-aware observations when possible."""
+The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3 and say only that it was out of view, without advising on camera setup.
+Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead."""
     response = client.models.generate_content(
         model=settings.video_model, contents=[uploaded_video, prompt],
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=DeliveryEvaluation),

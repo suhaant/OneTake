@@ -18,6 +18,32 @@ export type TakeResult = {
   also: { label: string; value: string }[];
   /** backend submission this result came from; absent for the sample result */
   submissionId?: string;
+  /** Detailed numbers behind the score (backend v2.1); absent on older results. */
+  details?: TakeDetails;
+  /** Concrete rewrites and delivery changes for next time, most valuable first. */
+  suggestions?: string[];
+};
+
+export type PaceBand = 'slow' | 'a bit slow' | 'on target' | 'a bit fast' | 'fast';
+
+export type TakeDetails = {
+  words: number;
+  /** seconds */
+  duration: number;
+  pace: { wpm: number; band: PaceBand };
+  fillers: {
+    total: number;
+    per100: number;
+    /** um/uh style fillers by word, most frequent first */
+    byWord: { word: string; count: number }[];
+    /** contextual fillers Gemini counted ("like", "you know", restarts) */
+    examples: string[];
+  };
+  vocabulary: { level: 'basic' | 'everyday' | 'varied' | 'precise'; score: number; strongWords: string[]; weakWords: string[] };
+  /** 0..100 overall, 1..5 for each part */
+  structure: { score: number; opening: number; support: number; closing: number };
+  /** 0..100 each; absent for audio-only takes */
+  delivery?: { eyeContact: number; posture: number; gestures: number };
 };
 
 export const todaysPrompt = {
@@ -51,6 +77,20 @@ export const mockResult: TakeResult = {
   also: [
     { label: 'Also: eye contact', value: '54% → aim for 80%' },
     { label: 'Also: pace', value: '181 wpm → ~160' },
+  ],
+  details: {
+    words: 135,
+    duration: 30,
+    pace: { wpm: 181, band: 'a bit fast' },
+    fillers: { total: 7, per100: 5.2, byWord: [{ word: 'um', count: 5 }, { word: 'uh', count: 2 }], examples: ['like', 'you know'] },
+    vocabulary: { level: 'varied', score: 75, strongWords: ['crackle', 'smoky', 'tangy'], weakWords: ['really good', 'stuff'] },
+    structure: { score: 75, opening: 5, support: 3, closing: 4 },
+    delivery: { eyeContact: 54, posture: 75, gestures: 70 },
+  },
+  suggestions: [
+    'Replace "it\'s really good" with "the crust crackles and the inside stays smoky".',
+    'Swap each "um" for a half-second pause; you had five in the middle stretch.',
+    'Keep your eyes on the lens from 0:14 to 0:22 instead of checking the screen.',
   ],
 };
 

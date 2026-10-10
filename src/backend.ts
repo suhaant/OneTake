@@ -1,7 +1,7 @@
 /** Client for the FastAPI scoring backend (see /backend). Set EXPO_PUBLIC_BACKEND_URL to its origin. */
 import { Platform } from 'react-native';
 import { File } from 'expo-file-system';
-import type { Moment, TakeResult } from './data/mock';
+import type { Moment, PaceBand, TakeDetails, TakeResult } from './data/mock';
 import { BACKEND_URL as BASE } from './config';
 
 const POLL_MS = 2000;
@@ -25,7 +25,35 @@ type Submission = {
     content_notes?: { strengths: string[]; weaknesses: string[] };
     delivery_notes?: { strengths: string[]; improvements: string[] };
   };
+  /** v2.1 */
+  breakdown?: {
+    words: number;
+    duration_seconds: number;
+    pace: { wpm: number; band: PaceBand };
+    fillers: { total: number; verbal: number; contextual: number; per_100_words: number; by_word: Record<string, number>; examples: string[] };
+    vocabulary: { rating: number; score: number; level: TakeDetails['vocabulary']['level']; strong_words: string[]; weak_words: string[] };
+    structure: { rating: number; score: number; opening: number; support: number; closing: number };
+    delivery?: { eye_contact: number; posture: number; body_language: number };
+  };
+  suggestions?: string[];
 };
+
+function toDetails(b: NonNullable<Submission['breakdown']>): TakeDetails {
+  return {
+    words: b.words,
+    duration: b.duration_seconds,
+    pace: { wpm: Math.round(b.pace.wpm), band: b.pace.band },
+    fillers: {
+      total: b.fillers.total,
+      per100: Math.round(b.fillers.per_100_words * 10) / 10,
+      byWord: Object.entries(b.fillers.by_word ?? {}).map(([word, count]) => ({ word, count })),
+      examples: b.fillers.examples ?? [],
+    },
+    vocabulary: { level: b.vocabulary.level, score: Math.round(b.vocabulary.score), strongWords: b.vocabulary.strong_words ?? [], weakWords: b.vocabulary.weak_words ?? [] },
+    structure: { score: Math.round(b.structure.score), opening: b.structure.opening, support: b.structure.support, closing: b.structure.closing },
+    delivery: b.delivery ? { eyeContact: Math.round(b.delivery.eye_contact), posture: Math.round(b.delivery.posture), gestures: Math.round(b.delivery.body_language) } : undefined,
+  };
+}
 
 export type HistoryRow = { submission_id: string; time: string; overall: number };
 
@@ -116,6 +144,8 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
     focusBody: s.feedback.next_exercise,
     also,
     submissionId,
+    details: s.breakdown ? toDetails(s.breakdown) : undefined,
+    suggestions: s.suggestions?.length ? s.suggestions : undefined,
   };
 }
 

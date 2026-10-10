@@ -39,6 +39,15 @@ export default function Prompt() {
     return () => clearInterval(id);
   }, [recording]);
 
+  // Time's up: stop from JS as well as native maxDuration, so the take ends on the countdown
+  // and recordAsync resolves (which sends it to analysis) without waiting on the camera.
+  useEffect(() => {
+    if (recording && left === 0) {
+      console.log('[onetake] 30s reached, stopping');
+      camera.current?.stopRecording();
+    }
+  }, [recording, left]);
+
   const start = async () => {
     if (recording || !camera.current) return;
     setRecording(true);
@@ -88,9 +97,9 @@ export default function Prompt() {
       </View>
 
       {/* viewfinder */}
-      <View style={[styles.finder, { top: insets.top + 324 }]}>
+      <View style={[styles.finder, { top: insets.top + 300, bottom: insets.bottom + 124 }]}>
         {granted ? (
-          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror onCameraReady={() => { console.log('[onetake] camera ready'); setReady(true); }} />
+          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror zoom={0} onCameraReady={() => { console.log('[onetake] camera ready'); setReady(true); }} />
         ) : (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1C2833', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
             <Text style={styles.permText}>OneTake needs the camera and mic to score your take.</Text>
@@ -99,14 +108,15 @@ export default function Prompt() {
             </Pressable>
           </View>
         )}
-        <Svg style={StyleSheet.absoluteFill} viewBox="0 0 350 316" preserveAspectRatio="xMidYMid slice">
-          <Ellipse cx={175} cy={150} rx={78} ry={98} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray="6 7" />
+        <Svg style={StyleSheet.absoluteFill} viewBox="0 0 350 420" preserveAspectRatio="xMidYMid slice">
+          {/* Face guide sits in the upper third so the chest and hands have room below it. */}
+          <Ellipse cx={175} cy={140} rx={72} ry={92} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray="6 7" />
         </Svg>
         <Text style={styles.finderStatus}>{recording ? 'REC' : ready ? 'READY' : '…'}</Text>
         <View style={styles.timer}>
           <Text style={styles.timerText}>{mm}</Text>
         </View>
-        <Text style={styles.finderHint}>Keep your face in the oval · look at the lens</Text>
+        <Text style={styles.finderHint}>Face in the oval · hands in frame · eyes on the lens</Text>
       </View>
 
       {/* shutter */}
@@ -165,7 +175,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    height: 300,
     borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: '#1C2833',
