@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -22,6 +23,11 @@ class Store(Protocol):
     def fail(self, submission_id: str, error: str, error_type: str) -> None: ...
     def progress(self, user_id: str, days: int, bucket: str) -> dict[str, Any]: ...
     def leaderboard(self, limit: int) -> list[dict[str, Any]]: ...
+    def standing(self, submission_id: str) -> dict[str, Any] | None: ...
+
+
+def _standing(rank: int, total: int, score: float, previous: float | None) -> dict[str, Any]:
+    return {"rank": rank, "total": total, "percentile": max(1, math.ceil(rank / total * 100)), "delta": None if previous is None else round(score - previous)}
 
 
 class JsonSubmissionStore:
@@ -69,7 +75,18 @@ class JsonSubmissionStore:
             if not s.get("user_id") or s.get("unavailable_metrics"): continue
             entry = best.setdefault(s["user_id"], {"user_id": s["user_id"], "best_score": 0.0, "takes": 0})
             entry["best_score"] = max(entry["best_score"], s["overall_score"]); entry["takes"] += 1
-        return sorted(best.values(), key=lambda e: e["best_score"], reverse=True)[:limit]
+        ranked = sorted(best.values(), key=lambda e: e["best_score"], reverse=True)[:limit]
+        return [{"rank": i, **entry} for i, entry in enumerate(ranked, 1)]
+
+    def standing(self, submission_id: str) -> dict[str, Any] | None:
+        takes = self._completed()
+        me = next((s for s in takes if s["submission_id"] == submission_id), None)
+        if not me or me.get("unavailable_metrics"): return None  # only video takes are ranked
+        video = [s for s in takes if not s.get("unavailable_metrics")]
+        today = [s for s in video if s["created_at"][:10] == me["created_at"][:10]]
+        earlier = [s for s in video if me.get("user_id") and s.get("user_id") == me["user_id"] and s["created_at"] < me["created_at"]]
+        previous = max(earlier, key=lambda s: s["created_at"])["overall_score"] if earlier else None
+        return _standing(1 + sum(s["overall_score"] > me["overall_score"] for s in today), len(today), me["overall_score"], previous)
 
 
 SCHEMA = """
@@ -115,7 +132,11 @@ class PostgresSubmissionStore:
         from psycopg_pool import ConnectionPool
         self.pool = ConnectionPool(database_url, min_size=1, max_size=5, open=True, kwargs={"autocommit": True})
         self.timescale = False
-        self._init_schema()
+        try:
+            self._init_schema()
+        except Exception as exc:
+            self.pool.close()
+            raise RuntimeError("Could not reach DATABASE_URL. If this times out, the network is likely blocking the port (try a hotspot), or unset DATABASE_URL to use the JSON store.") from exc
 
     def _init_schema(self) -> None:
         with self.pool.connection() as conn:
@@ -180,7 +201,19 @@ class PostgresSubmissionStore:
         # Audio-only takes are renormalized over fewer metrics, so only video takes are ranked.
         with self.pool.connection() as conn:
             rows = conn.execute("SELECT user_id, max(overall) AS best_score, round(avg(overall)::numeric, 2)::float AS average_score, count(*) AS takes FROM score_events WHERE user_id IS NOT NULL AND is_video GROUP BY user_id ORDER BY best_score DESC LIMIT %s", (limit,)).fetchall()
-        return [{"user_id": u, "best_score": b, "average_score": a, "takes": t} for u, b, a, t in rows]
+        return [{"rank": i, "user_id": u, "best_score": b, "average_score": a, "takes": t} for i, (u, b, a, t) in enumerate(rows, 1)]
+
+    def standing(self, submission_id: str) -> dict[str, Any] | None:
+        """Rank among today's (UTC) video takes, plus change since this user's previous video take."""
+        with self.pool.connection() as conn:
+            row = conn.execute("""
+                WITH me AS (SELECT time, user_id, overall FROM score_events WHERE submission_id = %s AND is_video)
+                SELECT 1 + (SELECT count(*) FROM score_events e WHERE e.is_video AND e.time >= date_trunc('day', me.time) AND e.time < date_trunc('day', me.time) + interval '1 day' AND e.overall > me.overall),
+                       (SELECT count(*) FROM score_events e WHERE e.is_video AND e.time >= date_trunc('day', me.time) AND e.time < date_trunc('day', me.time) + interval '1 day'),
+                       me.overall,
+                       (SELECT e.overall FROM score_events e WHERE e.is_video AND e.user_id = me.user_id AND e.time < me.time ORDER BY e.time DESC LIMIT 1)
+                FROM me""", (submission_id,)).fetchone()
+        return _standing(*row) if row else None
 
 
 def make_store() -> Store:

@@ -11,6 +11,8 @@ class SemanticEvaluation(BaseModel):
     vocabulary: int = Field(ge=1, le=5)
     sentence_structure: int = Field(ge=1, le=5)
     contextual_fillers: int = Field(ge=0)
+    language_tip: str
+    filler_tip: str
     strengths: list[str] = Field(min_length=1)
     weaknesses: list[str] = Field(min_length=1)
 
@@ -21,7 +23,8 @@ Prompt: {daily_prompt}\nTranscript: {transcript}\n
 Return 1–5 integer ratings and concise lists.
 Vocabulary: 1 vague, repetitive words, 3 adequate everyday words, 5 precise, varied word choice suited to the topic.
 Sentence structure: 1 run-ons, fragments, or abandoned sentences, 3 mostly complete sentences with little variety, 5 complete, varied sentences linked by clear transitions into an opening, point, and conclusion.
-contextual_fillers: count only filler uses of "like", "you know", "I mean", "basically", "actually", "literally", "kind of", "sort of", and "right?" plus immediately repeated words or restarted phrases (e.g. "because because"). Do not count um, uh, er, ah, or hmm; those are counted separately."""
+contextual_fillers: count only filler uses of "like", "you know", "I mean", "basically", "actually", "literally", "kind of", "sort of", and "right?" plus immediately repeated words or restarted phrases (e.g. "because because"). Do not count um, uh, er, ah, or hmm; those are counted separately.
+language_tip: one actionable sentence on improving vocabulary and sentence structure. filler_tip: one actionable sentence on reducing fillers, quoting the speaker's most common filler if any."""
     response = get_gemini_client().models.generate_content(
         model=settings.semantic_model, contents=prompt,
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=SemanticEvaluation),

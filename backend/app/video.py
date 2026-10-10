@@ -11,11 +11,23 @@ from .config import settings
 from .gemini import get_gemini_client
 
 
+class Moment(BaseModel):
+    t: str = Field(description="Timestamp as m:ss, e.g. 0:14")
+    title: str = Field(description="Short headline, under 6 words")
+    body: str = Field(description="One sentence of observable detail")
+    good: bool
+
+
 class DeliveryEvaluation(BaseModel):
     """Observable delivery ratings; Gemini should not infer emotions or identity."""
     eye_contact: int = Field(ge=1, le=5)
     posture: int = Field(ge=1, le=5)
     body_language: int = Field(ge=1, le=5)
+    eye_contact_tip: str
+    posture_tip: str
+    body_language_tip: str
+    moments: list[Moment] = Field(default_factory=list)
+    attention: list[float] = Field(default_factory=list)
     strengths: list[str] = Field(min_length=1)
     improvements: list[str] = Field(min_length=1)
 
@@ -52,6 +64,9 @@ Return 1–5 integer ratings:
 - eye_contact: how consistently the speaker's gaze is directed at the camera lens (the audience). 1 mostly looking away or reading, 3 roughly half the time, 5 steady gaze with only natural brief breaks.
 - posture: 1 slouched, hunched, or swaying, 3 mostly upright with some slumping or shifting, 5 upright, shoulders square and open, stable throughout.
 - body_language: hand gestures. 1 hands hidden, frozen, or fidgeting, 3 occasional gestures loosely tied to the words, 5 purposeful, varied gestures that reinforce key points.
+For each metric, give a one-sentence actionable tip (eye_contact_tip, posture_tip, body_language_tip).
+moments: 2–5 key moments in chronological order, mixing good and bad, each tied to what is seen or heard at that timestamp (gaze, posture, gestures, fillers, pace, a strong opening or close).
+attention: 12 values from 0 to 1, one per equal slice of the video, estimating how engaging the delivery looks and sounds in that slice (gaze on lens, energy, gestures, fluency). This is a delivery-based estimate, not a measurement of a real audience.
 Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. If the relevant body area is not visible, use 3 and state that limitation in improvements. Give concrete, timestamp-aware observations when possible."""
     response = client.models.generate_content(
         model=settings.video_model, contents=[uploaded_video, prompt],
