@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneTake</title>
+<style>
+  :root { --blue: #1273B5; --navy: #0B2A44; --good: #2E9E44; --bad: #D9480F; --muted: #5B7083; --card: #fff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--navy);
+         background: linear-gradient(180deg, #5BD2FF 0%, #B9ECFF 45%, #EAF8FF 100%); min-height: 100vh; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { margin: 0 0 4px; font-size: 14px; letter-spacing: 1.4px; text-transform: uppercase; color: #fff; }
+  .prompt { font-size: 30px; font-weight: 800; line-height: 1.15; color: #fff; text-shadow: 0 2px 10px rgba(0,80,140,.4); margin: 8px 0; }
+  .tip { color: #fff; opacity: .95; margin-bottom: 20px; }
+  .card { background: var(--card); border-radius: 22px; padding: 22px; box-shadow: 0 12px 30px rgba(0,50,100,.15); margin-top: 18px; }
+  .finder { position: relative; border-radius: 22px; overflow: hidden; background: #1C2833; aspect-ratio: 4 / 3; }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .badge { position: absolute; top: 12px; padding: 4px 10px; border-radius: 8px; background: rgba(0,0,0,.4); color: #fff; font-weight: 700; font-size: 13px; }
+  .rec { left: 12px; } .timer { right: 12px; font-size: 16px; }
+  .rec.on { background: #E8261E; }
+  .controls { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  input { padding: 12px 14px; border-radius: 12px; border: 1px solid #C9DCEB; font-size: 15px; width: 180px; }
+  button { padding: 13px 24px; border: 0; border-radius: 999px; font-size: 16px; font-weight: 800; cursor: pointer; color: #fff; background: #E8261E; box-shadow: 0 4px 0 #A3170F; }
+  button.secondary { background: var(--blue); box-shadow: 0 4px 0 #0B4F80; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint { color: var(--muted); font-size: 14px; }
+  .thinking { text-align: center; padding: 40px 0; font-size: 20px; font-weight: 700; }
+  .spinner { width: 44px; height: 44px; border: 5px solid #CFE6F5; border-top-color: var(--blue); border-radius: 50%; margin: 0 auto 16px; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero { display: flex; align-items: center; gap: 22px; }
+  .ring { --p: 0; width: 120px; height: 120px; border-radius: 50%; flex: none; display: grid; place-items: center;
+          background: conic-gradient(var(--blue) calc(var(--p) * 1%), #E3EEF6 0); }
+  .ring span { width: 94px; height: 94px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 36px; font-weight: 900; }
+  .sub { color: var(--muted); margin-top: 6px; }
+  h2 { font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  .row { margin-bottom: 14px; }
+  .row-top { display: flex; justify-content: space-between; font-weight: 700; }
+  .track { height: 10px; border-radius: 6px; background: #E3EEF6; margin: 6px 0 4px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; background: var(--blue); }
+  .fill.low { background: var(--bad); } .fill.high { background: var(--good); }
+  .suggest { font-size: 14px; color: #33495C; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: #FFF1E6; color: #9A3412; font-size: 14px; }
+  .moment { display: flex; gap: 12px; margin-bottom: 10px; }
+  .moment b.t { flex: none; width: 44px; color: var(--muted); }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; }
+  .transcript { font-size: 14px; color: #33495C; line-height: 1.5; }
+  .error { color: var(--bad); font-weight: 700; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Today's prompt</h1>
+  <div class="prompt" id="prompt">Loading…</div>
+  <div class="tip" id="tip"></div>
+
+  <section id="record-view">
+    <div class="finder">
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="badge rec" id="rec-badge">READY</div>
+      <div class="badge timer" id="timer">0:30</div>
+    </div>
+    <div class="controls">
+      <input id="user" placeholder="Your name" autocomplete="off">
+      <button id="record" disabled>● Record</button>
+      <span class="hint" id="hint">Allow camera and mic access to start.</span>
+    </div>
+  </section>
+
+  <section id="thinking-view" class="card hidden">
+    <div class="thinking"><div class="spinner"></div><div id="thinking-line">Uploading your take…</div>
+      <p class="hint">This usually takes about a minute.</p></div>
+  </section>
+
+  <section id="results-view" class="hidden"></section>
+</main>
+
+<script>
+const TAKE_SECONDS = 30;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let stream, recorder, chunks = [], prompt = "", ticker;
+
+$("user").value = localStorage.getItem("onetake_user") || "";
+
+async function init() {
+  const daily = await (await fetch("/api/daily-prompt")).json();
+  prompt = daily.prompt;
+  $("prompt").textContent = daily.prompt;
+  $("tip").textContent = `Tip: ${daily.tip}`;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+    $("preview").srcObject = stream;
+    $("record").disabled = false;
+    $("hint").textContent = "Look at the lens. One take, no retakes.";
+  } catch (e) {
+    $("hint").innerHTML = `<span class="error">Camera/mic blocked: ${esc(e.message)}. Allow access in your browser and reload.</span>`;
+  }
+}
+
+function pickMime() {
+  for (const t of ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"])
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  return "";
+}
+
+$("record").onclick = () => {
+  if (recorder?.state === "recording") return recorder.stop();
+  const user = $("user").value.trim();
+  if (!user) { $("user").focus(); $("hint").textContent = "Enter your name first."; return; }
+  localStorage.setItem("onetake_user", user);
+  chunks = [];
+  recorder = new MediaRecorder(stream, { mimeType: pickMime() });
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => { clearInterval(ticker); submit(new Blob(chunks, { type: recorder.mimeType }), user); };
+  recorder.start(1000);
+  let left = TAKE_SECONDS;
+  $("record").textContent = "■ Stop";
+  $("rec-badge").textContent = "REC"; $("rec-badge").classList.add("on");
+  $("user").disabled = true;
+  ticker = setInterval(() => {
+    left -= 1;
+    $("timer").textContent = `0:${String(Math.max(left, 0)).padStart(2, "0")}`;
+    if (left <= 0) recorder.stop();
+  }, 1000);
+};
+
+async function submit(blob, user) {
+  stream.getTracks().forEach((t) => t.stop());
+  $("record-view").classList.add("hidden");
+  $("thinking-view").classList.remove("hidden");
+  const form = new FormData();
+  form.append("recording", blob, blob.type.includes("mp4") ? "take.mp4" : "take.webm");
+  form.append("user_id", user);
+  form.append("prompt", prompt);
+  try {
+    const res = await fetch("/api/submissions", { method: "POST", body: form });
+    if (!res.ok) throw new Error(await res.text());
+    const { submission_id } = await res.json();
+    const lines = ["Listening back to your voice…", "Checking eye contact…", "Watching your posture and hands…", "Counting filler words…", "Reading the structure…", "Almost there…"];
+    let i = 0;
+    while (true) {
+      $("thinking-line").textContent = lines[Math.min(i++, lines.length - 1)];
+      await new Promise((r) => setTimeout(r, 4000));
+      const s = await (await fetch(`/api/submissions/${submission_id}`)).json();
+      if (s.status === "completed") return showResults(s.take);
+      if (s.status === "failed") throw new Error(s.error || "Analysis failed");
+    }
+  } catch (e) {
+    $("thinking-view").innerHTML = `<p class="error">Something went wrong: ${esc(e.message)}</p><button class="secondary" onclick="location.reload()">Try again</button>`;
+  }
+}
+
+function showResults(t) {
+  $("thinking-view").classList.add("hidden");
+  const standing = t.rank ? `#${t.rank} of ${t.total} today · top ${t.percentile}%` : "";
+  const delta = t.delta == null ? "First take, nice start." : `${t.delta >= 0 ? "+" : ""}${t.delta} vs your last take`;
+  const color = (v) => (v < 50 ? "low" : v >= 80 ? "high" : "");
+  $("results-view").innerHTML = `
+    <div class="card hero">
+      <div class="ring" style="--p:${t.score}"><span>${t.score}</span></div>
+      <div><div style="font-size:24px;font-weight:800">${t.score >= 75 ? "Nice take." : t.score < 55 ? "Tomorrow is a new take." : "Good take."}</div>
+        <div class="sub">${esc(standing)}${standing ? " · " : ""}${esc(delta)}</div></div>
+    </div>
+    <div class="card"><h2>Focus</h2><div style="font-size:20px;font-weight:800">${esc(t.focusTitle)}</div><p>${esc(t.focusBody)}</p></div>
+    <div class="card"><h2>Breakdown</h2>${t.subcategories.map((s) => `
+      <div class="row"><div class="row-top"><span>${esc(s.label)}</span><span>${s.score}</span></div>
+        <div class="track"><div class="fill ${color(s.score)}" style="width:${s.score}%"></div></div>
+        ${s.suggestion ? `<div class="suggest">${esc(s.suggestion)}</div>` : ""}</div>`).join("")}
+      <p class="hint">Composite weights: eye contact 25% · posture 15% · body language 15% · fillers 20% · language 25%</p></div>
+    <div class="card"><h2>Filler words · ${t.fillers.total} found (${t.fillers.per100Words} per 100 words)</h2>
+      <div class="chips">${t.fillers.found.length ? t.fillers.found.map((f) => `<span class="chip">${esc(f)}</span>`).join("") : "<span class='hint'>None. Clean take!</span>"}</div></div>
+    ${t.moments.length ? `<div class="card"><h2>Key moments</h2>${t.moments.map((m) => `
+      <div class="moment"><b class="t">${esc(m.t)}</b><span class="dot" style="background:${m.good ? "var(--good)" : "var(--bad)"}"></span>
+        <div><b>${esc(m.title)}</b> ${esc(m.body)}</div></div>`).join("")}</div>` : ""}
+    <div class="card"><h2>Transcript</h2><div class="transcript">${esc(t.transcript)}</div></div>
+    <div style="text-align:center;margin-top:22px"><button class="secondary" onclick="location.reload()">Record another take</button></div>`;
+  $("results-view").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+init();
+</script>
+</body>
+</html>

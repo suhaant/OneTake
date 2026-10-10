@@ -8,3 +8,4 @@ librosa>=0.10,<1
 psycopg[binary]>=3.2,<4
 psycopg-pool>=3.2,<4
 python-dotenv>=1.0,<2
+imageio-ffmpeg>=0.5,<1

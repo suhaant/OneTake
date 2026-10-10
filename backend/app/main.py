@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from .audio import analyze_audio, find_disfluencies
@@ -43,6 +44,12 @@ logger = logging.getLogger(__name__)
 class SubmissionAccepted(BaseModel):
     submission_id: str
     status: str
+
+
+@app.get("/", include_in_schema=False)
+def recorder_page() -> FileResponse:
+    """Local test page: record a take in the browser and see the results."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
 @app.get("/health")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -30,14 +31,24 @@ class DeliveryEvaluation(BaseModel):
     improvements: list[str] = Field(min_length=1)
 
 
+def _ffmpeg() -> str | None:
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return shutil.which("ffmpeg")
+
+
 def extract_wav(video_path: str | Path, destination: str | Path) -> Path:
-    """Extract a standard PCM WAV with macOS's built-in audio converter."""
+    """Extract 16 kHz mono PCM WAV. FFmpeg handles MOV, MP4, and browser WebM on any OS; afconvert is a macOS fallback."""
     destination = Path(destination)
-    command = ["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(video_path), str(destination)]
+    ffmpeg = _ffmpeg()
+    if ffmpeg: command = [ffmpeg, "-y", "-loglevel", "error", "-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(destination)]
+    else: command = ["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(video_path), str(destination)]
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
     except FileNotFoundError as exc:
-        raise RuntimeError("Audio conversion requires macOS afconvert or FFmpeg.") from exc
+        raise RuntimeError("Audio extraction needs FFmpeg (pip install imageio-ffmpeg) or macOS afconvert.") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"Could not extract audio from video: {exc.stderr.strip()}") from exc
     return destination

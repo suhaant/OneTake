@@ -7,7 +7,7 @@ FastAPI backend for a short-speech coaching workflow. Upload a MOV, MP4, WebM, o
 1. Create a virtual environment and install dependencies: `python3 -m pip install -r requirements.txt`
 2. Copy `.env.example` to `.env` and set `GEMINI_API_KEY` and (optionally) `DATABASE_URL`. `.env` is loaded automatically.
 3. Start the API: `uvicorn app.main:app --reload`
-4. Check `GET http://127.0.0.1:8000/health`.
+4. Open http://127.0.0.1:8000 to record a 30-second take in the browser and see the results, or check `GET http://127.0.0.1:8000/health`.
 
 Submit a MOV, MP4, WebM, or WAV recording as multipart form data to `POST /api/submissions` (optional `prompt` and `user_id` fields), then poll `GET /api/submissions/{submission_id}`.
 
