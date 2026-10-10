@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dailyPrompt } from '../prompt.ts';
 import { dayIn, streakFromDays } from '../util.ts';
-import type { Challenge, CoachMessage, Friend, Profile, Row, Store } from './types.ts';
+import type { BoardEntry, Challenge, CoachMessage, Friend, Profile, Row, Store } from './types.ts';
 
 type Edge = { userId: string; phone: string; name: string; friendUserId: string | null };
 
@@ -59,6 +59,15 @@ export function memoryStore(): Store {
     },
     async extras() {
       return {};
+    },
+    async todaysBoard(limit) {
+      const prompt = await dailyPrompt();
+      const rows: BoardEntry[] = [];
+      for (const p of profiles.values()) {
+        const a = attempts.get(p.userId)?.find((r) => r.prompt_id === prompt.id);
+        if (a) rows.push({ userId: p.userId, name: p.name, score: a.score });
+      }
+      return rows.sort((x, y) => y.score - x.score).slice(0, limit);
     },
 
     async addFriend(userId, phone, name) {

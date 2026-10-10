@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
@@ -10,7 +10,6 @@ import Panda from '../../components/Panda';
 import { Chip } from '../../components/Glass';
 import { Check, Envelope, Flame, Gem, Crown, List, Lock } from '../../components/Icons';
 import { colors, fonts, glassShadow } from '../../theme';
-import { pastTakes, todaysPrompt } from '../../data/mock';
 import { useApp } from '../../store';
 
 function DoneNode({ label, score }: { label: string; score: number }) {
@@ -24,8 +23,15 @@ function DoneNode({ label, score }: { label: string; score: number }) {
 
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const { streak, xp, rank, result } = useApp();
-  const done = !!result;
+  const { streak, xp, rank, result, me, doneToday: done, pastTakes, totalTakes, promptText, refreshStats } = useApp();
+  const todayScore = result?.score ?? me?.todayScore ?? null;
+  const dayNumber = totalTakes + (done ? 0 : 1);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshStats().catch(() => {});
+    }, [refreshStats]),
+  );
 
   return (
     <View style={styles.root}>
@@ -43,17 +49,17 @@ export default function Home() {
         </View>
         <View style={styles.stat}>
           <Crown size={26} />
-          <Text style={[styles.statText, { color: '#C9A000' }]}>#{rank.toLocaleString()}</Text>
+          <Text style={[styles.statText, { color: '#C9A000' }]}>{rank ? `#${rank.toLocaleString()}` : '—'}</Text>
         </View>
       </View>
 
       {/* unit banner */}
       <LinearGradient colors={['#4FC3F7', '#1E9EE6']} style={[styles.banner, { top: insets.top + 78 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.bannerTitle}>
-            Week {todaysPrompt.week} · Day {todaysPrompt.day}
+          <Text style={styles.bannerTitle}>{done && todayScore != null ? `Today · ${todayScore}` : `Day ${dayNumber}`}</Text>
+          <Text style={styles.bannerSub} numberOfLines={2}>
+            {done ? 'Done for today. Back tomorrow!' : promptText}
           </Text>
-          <Text style={styles.bannerSub}>{done ? 'Done for today. Back tomorrow!' : "Today's envelope is waiting for you"}</Text>
         </View>
         <Pressable accessibilityLabel="Past takes" onPress={() => router.push('/results')} style={styles.bannerBtn}>
           <List size={24} />
@@ -62,12 +68,17 @@ export default function Home() {
 
       {/* path */}
       <View style={[styles.path, { top: insets.top + 190 }]}>
-        <View style={{ position: 'absolute', left: 230 }}>
-          <DoneNode label={pastTakes[0].label} score={pastTakes[0].score} />
-        </View>
-        <View style={{ position: 'absolute', left: 150, top: 90 }}>
-          <DoneNode label={pastTakes[1].label} score={pastTakes[1].score} />
-        </View>
+        {/* the two takes before today; empty slots stay empty for a new user */}
+        {pastTakes.length > 1 && (
+          <View style={{ position: 'absolute', left: 230 }}>
+            <DoneNode label={pastTakes[0].day} score={pastTakes[0].score} />
+          </View>
+        )}
+        {pastTakes.length > 0 && (
+          <View style={{ position: 'absolute', left: 150, top: 90 }}>
+            <DoneNode label={pastTakes[pastTakes.length - 1].day} score={pastTakes[pastTakes.length - 1].score} />
+          </View>
+        )}
 
         {/* today */}
         <View style={{ position: 'absolute', left: 50, top: 200, width: 140, alignItems: 'center' }}>
@@ -100,7 +111,7 @@ export default function Home() {
             />
           </View>
           <View style={{ marginTop: 14 }}>
-            <Chip text="Today" tone="green" />
+            <Chip text={done && todayScore != null ? `Today · ${todayScore}` : 'Today'} tone="green" />
           </View>
         </View>
 

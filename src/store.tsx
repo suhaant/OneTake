@@ -1,21 +1,37 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError, Me } from './api';
-import { backendEnabled, fetchDailyPrompt, scoreTake } from './backend';
+import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, scoreTake } from './backend';
 import { mockResult, TakeResult, todaysPrompt } from './data/mock';
 
 const USER_KEY = 'onetake.userId';
 const PENDING_CHALLENGE_KEY = 'onetake.pendingChallenge';
 
+/** A previous day's take, for the path on the home screen. */
+export type PastTake = { day: string; score: number; submissionId: string };
+
 type State = {
+  /** consecutive days with a take, from the server; 0 until an account exists */
   streak: number;
+  /** points: the sum of every scored take */
   xp: number;
-  rank: number;
+  /** today's rank, or null before today's take */
+  rank: number | null;
+  /** how many people have taken today's prompt so far */
+  takers: number;
+  /** the two most recent takes before today */
+  pastTakes: PastTake[];
+  /** every scored take so far, today included */
+  totalTakes: number;
+  /** true once today's take is scored, including takes scored before the app restarted */
+  doneToday: boolean;
   /** today's finished take, once the analysis is done */
   result: TakeResult | null;
+  /** the shown result is the built-in sample because no backend was reachable */
+  sample: boolean;
   videoUri: string | null;
   setVideoUri: (uri: string | null) => void;
-  /** today's prompt text, from the backend when one is configured */
+  /** today's prompt text, from the backend when one is reachable */
   promptText: string;
   /** scores the recorded take; rejects if the backend could not score it */
   analyze: () => Promise<void>;
@@ -26,47 +42,97 @@ type State = {
   /** opens the account if needed, then sets its display name */
   saveName: (name: string) => Promise<Me>;
   refreshMe: () => Promise<void>;
+  /** re-reads streak, rank, history and today's result from the servers */
+  refreshStats: () => Promise<void>;
   /** a friend's challenge link was opened; links the two accounts now or once an account exists */
   acceptChallenge: (id: string) => Promise<void>;
 };
 
 const Ctx = createContext<State | null>(null);
 
+const dayLabel = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short' });
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [result, setResult] = useState<TakeResult | null>(null);
+  const [sample, setSample] = useState(false);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [promptText, setPromptText] = useState(todaysPrompt.text);
+  const [xp, setXp] = useState(0);
+  const [rank, setRank] = useState<number | null>(null);
+  const [takers, setTakers] = useState(0);
+  const [pastTakes, setPastTakes] = useState<PastTake[]>([]);
+  const [totalTakes, setTotalTakes] = useState(0);
   // Mirrors of state for the stable callbacks below.
   const meRef = useRef<Me | null>(null);
+  const resultRef = useRef<TakeResult | null>(null);
   const takeRef = useRef({ videoUri, promptText });
   const running = useRef<Promise<void> | null>(null);
   useEffect(() => {
     meRef.current = me;
+    resultRef.current = result;
     takeRef.current = { videoUri, promptText };
-  }, [me, videoUri, promptText]);
+  }, [me, result, videoUri, promptText]);
 
   useEffect(() => {
     fetchDailyPrompt().then((text) => text && setPromptText(text));
   }, []);
 
-  const report = (userId: string | undefined, r: TakeResult) => {
+  const report = async (userId: string | undefined, r: TakeResult) => {
     // Best effort: the take is already on screen, and a missed report only delays friends' texts.
-    if (userId) api.reportAttempt(userId, r.score, r).catch(() => {});
+    if (userId) await api.reportAttempt(userId, r.score, r).catch(() => {});
   };
+
+  /**
+   * Pulls everything the home and ranks screens show from the two services. Each part fails on its
+   * own, so a backend that is down leaves the server-side numbers intact and vice versa.
+   */
+  const refreshStats = useCallback(async () => {
+    const account = meRef.current;
+    const [history, board] = await Promise.all([
+      account ? fetchHistory(account.userId, 60) : Promise.resolve([]),
+      api.leaderboard('global', account?.userId, 100).catch(() => null),
+    ]);
+    const today = new Date();
+    setXp(Math.round(history.reduce((sum, h) => sum + h.overall, 0)));
+    setTotalTakes(history.length);
+    setPastTakes(
+      history
+        .filter((h) => !sameDay(new Date(h.time), today))
+        .slice(-2)
+        .map((h) => ({ day: dayLabel(h.time), score: Math.round(h.overall), submissionId: h.submission_id })),
+    );
+    if (board) {
+      setTakers(board.total);
+      setRank(board.me?.rank ?? null);
+    }
+    // Scored before this launch: load the real result rather than falling back to the sample.
+    const todays = history.filter((h) => sameDay(new Date(h.time), today)).at(-1);
+    if (todays && !resultRef.current && account) {
+      const loaded = await fetchTakeResult(todays.submission_id, account.userId).catch(() => null);
+      if (loaded) {
+        setResult(loaded);
+        setSample(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
       const userId = await AsyncStorage.getItem(USER_KEY);
       if (!userId) return;
       try {
-        setMe(await api.getUser(userId));
+        const account = await api.getUser(userId);
+        meRef.current = account;
+        setMe(account);
       } catch (err) {
         // The account is gone server-side (e.g. dev store restarted); start over.
         if (err instanceof ApiError && err.code === 'not_found') await AsyncStorage.removeItem(USER_KEY);
       }
+      await refreshStats();
     })().catch(() => {});
-  }, []);
+  }, [refreshStats]);
 
   const refreshMe = useCallback(async () => {
     const current = meRef.current;
@@ -105,20 +171,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const account = await ensureAccount().catch(() => null);
       const { videoUri: uri, promptText: prompt } = takeRef.current;
       let scored: TakeResult;
-      if (backendEnabled && uri) {
-        scored = await scoreTake(uri, prompt, account?.userId);
-      } else {
-        // No backend configured, or nothing was recorded (web, simulator): show the sample result.
+      let isSample = false;
+      if (!uri) {
+        // Nothing was recorded (web, simulator): show the sample result.
         await new Promise((resolve) => setTimeout(resolve, 5200));
         scored = mockResult;
+        isSample = true;
+      } else {
+        try {
+          scored = await scoreTake(uri, prompt, account?.userId);
+        } catch (err) {
+          // No backend running at all: keep the demo moving on the sample. A real scoring failure still surfaces.
+          if (!(err instanceof BackendUnreachable)) throw err;
+          console.warn('[onetake] scoring backend unreachable, showing the sample result');
+          scored = mockResult;
+          isSample = true;
+        }
       }
       setResult(scored);
-      report(account?.userId, scored);
+      setSample(isSample);
+      // Report first so the rank and streak that follow already include today's take.
+      await report(account?.userId, scored);
+      await Promise.all([refreshMe().catch(() => {}), refreshStats().catch(() => {})]);
     })().finally(() => {
       running.current = null;
     });
     return running.current;
-  }, [ensureAccount]);
+  }, [ensureAccount, refreshMe, refreshStats]);
 
   const acceptChallenge = useCallback(async (id: string) => {
     const userId = meRef.current?.userId ?? (await AsyncStorage.getItem(USER_KEY));
@@ -128,25 +207,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<State>(
     () => ({
-      streak: 4,
-      xp: 1240,
-      rank: 1712,
+      streak: me?.streak ?? 0,
+      xp,
+      rank: rank ?? result?.rank ?? null,
+      takers,
+      pastTakes,
+      totalTakes,
+      doneToday: Boolean(result) || Boolean(me?.completedToday),
       result,
+      sample,
       videoUri,
       setVideoUri,
       promptText,
       analyze,
       reset: () => {
         setResult(null);
+        setSample(false);
         setVideoUri(null);
       },
       me,
       setMe,
       saveName,
       refreshMe,
+      refreshStats,
       acceptChallenge,
     }),
-    [result, videoUri, promptText, analyze, me, saveName, refreshMe, acceptChallenge],
+    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
