@@ -56,7 +56,7 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [result, setResult] = useState<TakeResult | null>(null);
   const [sample, setSample] = useState(false);
-  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [videoUri, setVideoUriState] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [promptText, setPromptText] = useState(todaysPrompt.text);
   const [xp, setXp] = useState(0);
@@ -69,6 +69,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resultRef = useRef<TakeResult | null>(null);
   const takeRef = useRef({ videoUri, promptText });
   const running = useRef<Promise<void> | null>(null);
+  // Written to the ref synchronously: the thinking screen's effect runs before this provider's
+  // mirror effect, so analyze() would otherwise read the previous (null) recording.
+  const setVideoUri = useCallback((uri: string | null) => {
+    takeRef.current = { ...takeRef.current, videoUri: uri };
+    setVideoUriState(uri);
+  }, []);
   useEffect(() => {
     meRef.current = me;
     resultRef.current = result;
@@ -183,7 +189,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           // No backend running at all: keep the demo moving on the sample. A real scoring failure still surfaces.
           if (!(err instanceof BackendUnreachable)) throw err;
-          console.warn('[onetake] scoring backend unreachable, showing the sample result');
+          console.warn('[onetake] scoring backend unreachable, showing the sample result:', err.message);
           scored = mockResult;
           isSample = true;
         }
@@ -232,7 +238,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshStats,
       acceptChallenge,
     }),
-    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge],
+    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
