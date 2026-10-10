@@ -9,7 +9,7 @@ export const config = {
     webhookSecret: env.SPECTRUM_WEBHOOK_SECRET || undefined,
     api: 'https://spectrum.photon.codes',
   },
-  gemini: { apiKey: env.GEMINI_API_KEY ?? '', model: env.GEMINI_MODEL ?? 'gemini-2.5-flash' },
+  gemini: { apiKey: env.GEMINI_API_KEY ?? '', model: env.GEMINI_MODEL ?? 'gemini-3.8-flash' },
   databaseUrl: env.DATABASE_URL ?? '',
   /** Origin of the FastAPI scoring backend (see /backend). */
   backendUrl: (env.BACKEND_URL ?? '').replace(/\/$/, ''),
