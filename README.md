@@ -48,6 +48,10 @@ Scan the QR with Expo Go. **No `.env` is needed in development**: the app assume
 
 `--host 0.0.0.0` on the backend matters: without it the phone can't reach it.
 
+## Packages stay in sync by themselves
+
+The first `npm install` in a clone turns on the git hooks in `.githooks/`. From then on, a pull, merge, rebase or branch switch that changes `package.json` or `package-lock.json` (app or `server/`) runs `npm install` for you; a change to `backend/requirements.txt` prints a reminder. To turn it off: `git config --unset core.hooksPath`.
+
 ## What talks to what
 
 1. App opens an account on the server (`POST /users`) before the first take, so the take has an owner.

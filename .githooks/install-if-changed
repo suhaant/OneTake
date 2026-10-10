@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs `npm install` when a pull, merge, rebase or branch switch changed the package files,
+# so nobody has to remember to. Called by the hooks next to this file with the old and new commit.
+# Enabled for a clone by the "prepare" script in package.json (one `npm install`), or by hand:
+#   git config core.hooksPath .githooks
+old=$1
+new=$2
+[ -n "$old" ] && [ -n "$new" ] && [ "$old" != "$new" ] || exit 0
+root=$(git rev-parse --show-toplevel) || exit 0
+changed=$(git diff --name-only "$old" "$new" 2>/dev/null) || exit 0
+
+touched() { for f in "$@"; do printf '%s\n' "$changed" | grep -qxF "$f" && return 0; done; return 1; }
+
+if touched package.json package-lock.json; then
+  echo "[hooks] app packages changed: running npm install"
+  (cd "$root" && npm install --no-audit --no-fund) || echo "[hooks] npm install failed; run it by hand"
+fi
+if touched server/package.json server/package-lock.json; then
+  echo "[hooks] server packages changed: running npm install in server/"
+  (cd "$root/server" && npm install --no-audit --no-fund) || echo "[hooks] npm install failed in server/; run it by hand"
+fi
+if touched backend/requirements.txt; then
+  echo "[hooks] backend/requirements.txt changed: run  pip install -r backend/requirements.txt  in your Python environment"
+fi
+exit 0

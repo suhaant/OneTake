@@ -1,0 +1,3 @@
+#!/bin/sh
+# After `git pull` (merge) or `git merge`.
+exec "$(dirname "$0")/install-if-changed" ORIG_HEAD HEAD

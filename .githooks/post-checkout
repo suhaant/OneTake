@@ -1,0 +1,4 @@
+#!/bin/sh
+# After switching branches ($3 is 1). Not after checking out single files.
+[ "$3" = 1 ] || exit 0
+exec "$(dirname "$0")/install-if-changed" "$1" "$2"

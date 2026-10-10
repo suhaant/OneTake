@@ -1,0 +1,4 @@
+#!/bin/sh
+# After `git pull --rebase` or `git rebase` (not after `git commit --amend`).
+[ "$1" = rebase ] || exit 0
+exec "$(dirname "$0")/install-if-changed" ORIG_HEAD HEAD
