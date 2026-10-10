@@ -121,7 +121,7 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
 export async function fetchTakeResult(submissionId: string, userId?: string): Promise<TakeResult | null> {
   const s = await getJson<Submission>(`/api/submissions/${submissionId}`);
   if (s.status !== 'completed') return null;
-  return toResult(s, await standing(userId, s.overall_score));
+  return toResult(s, await standing(userId, s.overall_score), submissionId);
 }
 
 /** Uploads the recording, waits for scoring, and returns it in the shape the results screen draws. */

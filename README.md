@@ -20,13 +20,15 @@ Each in its own terminal, from the repo root.
 cd backend && python -m pip install -r requirements.txt && cp .env.example .env
 ```
 
-Put your `GEMINI_API_KEY` in `backend/.env`, then:
+Put your `GEMINI_API_KEY` in `backend/.env`, then (Python 3.12 or newer; on 3.11 the audio step fails on stereo recordings):
 
 ```bash
 cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Video takes need an audio converter: macOS has `afconvert` built in; on Windows/Linux install FFmpeg (`winget install ffmpeg` / `apt install ffmpeg`).
+
+For the **Brain response** section on the results screen (a 3D brain showing the response Meta's TRIBE v2 predicts for the take's words), also set `NEURO_SCORE_URL` in `backend/.env`. Setup and what the numbers mean: [`neuro/README.md`](neuro/README.md). Without it the section stays hidden and everything else works as before.
 
 **2. Messaging server**
 
@@ -53,6 +55,7 @@ Scan the QR with Expo Go. **No `.env` is needed in development**: the app assume
 3. App reports the score to the server (`POST /users/:id/attempts`), which texts friends who haven't taken today's prompt.
 4. Home, Ranks and Share read live data: streak and `completedToday` from the server, history/XP from the backend (`/api/users/:id/progress`), today's board from the server (`GET /leaderboard`), which joins the backend's `score_events` with its own profile names.
 5. After a restart, today's result is reloaded from the backend instead of showing the sample.
+6. Once the transcript exists, the backend sends its word timings to the neuro API (`neuro/`) in a side thread. The results screen polls `GET /api/submissions/:id/neuro` and embeds the 3D viewer the backend serves at `/neuro/viewer/`. This is display-only and never enters the score.
 
 ## Checks
 
