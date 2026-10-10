@@ -28,6 +28,9 @@ export type Take = {
   moments: Moment[];
   focusTitle: string; focusBody: string;
   also: { label: string; value: string }[];
+  /** 6 subcategories; suggestion is null when score >= 80 (nothing to fix) */
+  subcategories: { key: string; label: string; score: number; suggestion: string | null }[];
+  fillers: { total: number; per100Words: number; found: string[] }; // e.g. ["because", "and", "right?", "… (restart)"]
   transcript: string;
 };
 
@@ -58,6 +61,10 @@ export async function waitForTake(id: string, timeoutMs = 5 * 60_000): Promise<T
   throw new Error('Analysis timed out');
 }
 
+/** Same prompt for everyone each UTC day; rotates through 60 prompts with no repeats. */
+export const getDailyPrompt = async () => (await (await fetch(`${API}/api/daily-prompt`)).json()) as
+  { date: string; prompt: string; tip: string; takers: number };
+
 export const getLeaderboard = async () => (await (await fetch(`${API}/api/leaderboard`)).json()).entries as
   { rank: number; user_id: string; best_score: number; average_score: number; takes: number }[];
 
@@ -69,14 +76,15 @@ export const getProgress = async (userId: string, bucket: 'day' | 'week' = 'day'
 
 | File | Change |
 |---|---|
-| `src/store.tsx` | Change `finishAnalysis` to an async function that calls `submitTake(videoUri, userId, todaysPrompt.text)` and then `waitForTake(id)`, and stores the result with `setResult`. Change `result`'s type to `Take`. |
+| `src/store.tsx` | Change `finishAnalysis` to an async function that calls `submitTake(videoUri, userId, dailyPrompt.prompt)` and then `waitForTake(id)`, and stores the result with `setResult`. Change `result`'s type to `Take`. |
 | `src/app/thinking.tsx` | Replace the 5.2-second `setTimeout` with `await finishAnalysis()`, then `router.replace('/results')`. On an error, show a retry message. Keep the rotating panda lines, since the wait is now about 1–2 minutes. |
 | `src/app/results.tsx` | The bar weights are hardcoded as 40/30/30. Either render `r.breakdown` (5 bars: label, `Math.round(weight*100)%`, value), or keep 3 bars and use `r.groupWeights` (20/55/25). `rank`, `percentile`, and `delta` can be `null`, so hide those parts of the header when they are. If `attention` is empty (audio-only), hide the curve. |
+| `todaysPrompt` (mock.ts) | Replace with `getDailyPrompt()` and use `prompt`, `tip`, and `takers` (`takers` counts today's uploads). Fetch it on the home and prompt screens, and pass the same `prompt` to `submitTake`. |
 | `src/app/(tabs)/ranks.tsx` | Use `getLeaderboard()` instead of mock data. There are no names or avatars yet, so show `user_id` and use its initials. |
 | `src/app/(tabs)/you.tsx` and `streak.tsx` | Past scores come from `getProgress(userId).history`. |
 | User ID | There's no login yet. Generate an ID once (e.g. `crypto.randomUUID()`), save it on the device with `expo-secure-store` (install it with `npx expo install expo-secure-store`), and send it with every take. |
 
 ## Notes
-- **Prompt:** send `todaysPrompt.text` as `prompt` so the feedback matches the prompt the user saw.
+- **Prompt:** send the `prompt` from `getDailyPrompt()` with the upload so the feedback matches the prompt the user saw. If it's left out, the backend uses today's prompt. Prompts change at midnight UTC (8 PM US Eastern).
 - **Rankings:** `rank`, `total`, and `percentile` count today's video takes across all users, so `total` is small until real users show up.
 - **Moments:** these come from Gemini, so timestamps are approximate (about ±1 s).

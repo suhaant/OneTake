@@ -24,6 +24,11 @@ class Store(Protocol):
     def progress(self, user_id: str, days: int, bucket: str) -> dict[str, Any]: ...
     def leaderboard(self, limit: int) -> list[dict[str, Any]]: ...
     def standing(self, submission_id: str) -> dict[str, Any] | None: ...
+    def takers_today(self) -> int: ...
+
+
+def _utc_midnight() -> datetime:
+    return datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def _standing(rank: int, total: int, score: float, previous: float | None) -> dict[str, Any]:
@@ -77,6 +82,9 @@ class JsonSubmissionStore:
             entry["best_score"] = max(entry["best_score"], s["overall_score"]); entry["takes"] += 1
         ranked = sorted(best.values(), key=lambda e: e["best_score"], reverse=True)[:limit]
         return [{"rank": i, **entry} for i, entry in enumerate(ranked, 1)]
+
+    def takers_today(self) -> int:
+        with self.lock: return sum(datetime.fromisoformat(s["created_at"]) >= _utc_midnight() for s in self._load().values())
 
     def standing(self, submission_id: str) -> dict[str, Any] | None:
         takes = self._completed()
@@ -202,6 +210,10 @@ class PostgresSubmissionStore:
         with self.pool.connection() as conn:
             rows = conn.execute("SELECT user_id, max(overall) AS best_score, round(avg(overall)::numeric, 2)::float AS average_score, count(*) AS takes FROM score_events WHERE user_id IS NOT NULL AND is_video GROUP BY user_id ORDER BY best_score DESC LIMIT %s", (limit,)).fetchall()
         return [{"rank": i, "user_id": u, "best_score": b, "average_score": a, "takes": t} for i, (u, b, a, t) in enumerate(rows, 1)]
+
+    def takers_today(self) -> int:
+        with self.pool.connection() as conn:
+            return conn.execute("SELECT count(*) FROM submissions WHERE created_at >= %s", (_utc_midnight(),)).fetchone()[0]
 
     def standing(self, submission_id: str) -> dict[str, Any] | None:
         """Rank among today's (UTC) video takes, plus change since this user's previous video take."""
