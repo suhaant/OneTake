@@ -119,7 +119,7 @@ export default function Ranks() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AeroBackground hills={false} locations={[0, 0.3, 0.7, 1]} />
+      <AeroBackground art="water" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Leaderboard</Text>

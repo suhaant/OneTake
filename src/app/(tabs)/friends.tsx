@@ -8,7 +8,6 @@ import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Field from '../../components/Field';
 import Panda from '../../components/Panda';
-import Grass from '../../components/Grass';
 import { Chip, GlassCard, SpeechBubble } from '../../components/Glass';
 import { Friends as FriendsIcon, Share } from '../../components/Icons';
 import { colors, fonts, skyText } from '../../theme';
@@ -127,8 +126,7 @@ export default function FriendsTab() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AeroBackground video="sky" />
-      <Grass height={230} leaves={false} />
+      <AeroBackground art="sky" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Friends</Text>
         <View style={styles.pandaRow}>

@@ -73,25 +73,28 @@ export function SpeechBubble({ text, style }: { text: string; style?: StyleProp<
   );
 }
 
-export function Chip({ text, tone = 'white' }: { text: string; tone?: 'white' | 'green' | 'blue' }) {
+export function Chip({ text, tone = 'white' }: { text: string; tone?: 'white' | 'green' | 'blue' | 'solidBlue' }) {
   const face =
     tone === 'green'
       ? (['#F0FFC8', '#C6F57F', '#9BDE4A'] as const)
       : tone === 'blue'
         ? (['#F0FCFF', '#B9EEFF', '#7ADBFF'] as const)
-        : (['#FFFFFF', '#F6FBFF', '#E6F4FB'] as const);
-  const textColor = tone === 'green' ? colors.greenText : tone === 'blue' ? colors.blue : '#7A4A00';
-  const border = tone === 'green' ? '#8CD63D' : tone === 'blue' ? '#6ED2FB' : '#D9EBF5';
+        : tone === 'solidBlue'
+          ? (['#5FC9F8', '#2A9BE6', '#1878CF'] as const)
+          : (['#FFFFFF', '#F6FBFF', '#E6F4FB'] as const);
+  const textColor = tone === 'green' ? colors.greenText : tone === 'blue' ? colors.blue : tone === 'solidBlue' ? '#FFFFFF' : '#7A4A00';
+  const border = tone === 'green' ? '#8CD63D' : tone === 'blue' ? '#6ED2FB' : tone === 'solidBlue' ? '#FFFFFF' : '#D9EBF5';
   return (
     <View style={[styles.chip, { borderColor: border }]}>
       <LinearGradient colors={[...face]} style={StyleSheet.absoluteFill} />
       <Gloss height="55%" radius={999} />
-      <Text style={[styles.chipText, { color: textColor }]}>{text}</Text>
+      <Text style={[styles.chipText, { color: textColor }, tone === 'solidBlue' && styles.chipTextOnBlue]}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  chipTextOnBlue: { textShadowColor: 'rgba(0,60,120,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   cardShadow: {
     borderRadius: 26,
     borderWidth: 1,

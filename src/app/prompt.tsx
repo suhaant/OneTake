@@ -128,7 +128,7 @@ export default function Prompt() {
 
   return (
     <View style={styles.root}>
-      <AeroBackground bubbles={[{ x: 0.1, y: 0.4, r: 23 }]} />
+      <AeroBackground art="meadow" drift={0} />
 
       <View style={[styles.header, { marginTop: insets.top + 8 }]}>
         <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={styles.roundBtn}>
