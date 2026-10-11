@@ -74,12 +74,12 @@ export function verdictLines(name: string | null, r: TakeResult): Line[] {
   const score = r.score;
   const verdict: Line =
     score >= 85
-      ? { text: `[excited] Overall, great job${withName(name)}!`, mood: 'celebrate', gesture: 'cheer' }
+      ? { text: `[excited] Great job${withName(name)}! That was a strong one.`, mood: 'celebrate', gesture: 'cheer' }
       : score >= 70
-        ? { text: `[cheerful] Not too shabby${withName(name)}!`, mood: 'encourage', gesture: 'thumbs' }
+        ? { text: `[cheerful] Good job${withName(name)}! Not too shabby.`, mood: 'encourage', gesture: 'thumbs' }
         : score >= 55
-          ? { text: `Hmm. You could use some work${withName(name)}.`, mood: 'hello', gesture: 'shrug' }
-          : { text: `[sighs] This is not your best performance${withName(name)}.`, mood: 'console', gesture: 'shrug' };
+          ? { text: `Hmm. Not bad${withName(name)}, but you could use some work.`, mood: 'hello', gesture: 'shrug' }
+          : { text: `[sighs] Yikes${withName(name)}. Not your best.`, mood: 'console', gesture: 'shrug' };
   const areas = focusAreas(r);
   const list = areas.length > 1 ? `${areas.slice(0, -1).join(', ')} and ${areas.at(-1)}` : areas[0];
   const improve: Line = { text: `Just work on ${list} to help you improve.`, mood: score >= 70 ? 'encourage' : 'hello', gesture: 'point' };

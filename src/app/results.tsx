@@ -130,12 +130,12 @@ export default function Results() {
   const r = result ?? mockResult;
   const pose = r.score >= 75 ? 'celebrate' : r.score < 55 ? 'console' : 'idle';
 
-  // The verdict, once per take: great job / not too shabby / could use some work / not your best, then what to fix.
+  // The verdict, once per take: great job / good job / could use some work / yikes, then what to fix.
+  // A take counts as spoken only when he got through it, so a screen that mounts twice still says it.
   useEffect(() => {
     const key = r.submissionId ?? `sample:${r.score}`;
     if (spokenTakes.has(key)) return;
-    spokenTakes.add(key);
-    coach.say(verdictLines(firstName(me?.name), r));
+    coach.say(verdictLines(firstName(me?.name), r)).then((finished) => finished && spokenTakes.add(key));
   }, [coach, r, me?.name]);
   const bubble =
     pose === 'celebrate'

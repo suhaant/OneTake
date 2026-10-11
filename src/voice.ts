@@ -121,8 +121,10 @@ export class Coach {
   async say(lines: Line[], options: SayOptions = {}): Promise<boolean> {
     this.stop();
     const run = ++this.run;
-    // Every time: other audio on the screen (the waiting-screen loop) sets its own mode.
-    setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers' }).catch(() => {});
+    // Every time, and before the first line plays: other audio on the screen (the waiting-screen
+    // loop) sets its own mode, and a line that starts before the mode lands is silent on a muted phone.
+    await setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers' }).catch(() => {});
+    if (run !== this.run) return false;
     // Fetch everything up front so there is no gap between lines.
     const fetched = lines.map((l) => prefetch(l.text));
     for (let n = 0; n < lines.length; n++) {
