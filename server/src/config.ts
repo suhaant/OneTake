@@ -10,6 +10,11 @@ export const config = {
   backendUrl: (env.BACKEND_URL ?? '').replace(/\/$/, ''),
   internalSecret: env.INTERNAL_SECRET ?? '',
   enableCron: env.ENABLE_CRON === '1',
+  /**
+   * How many days the global board looks back for each user's best take. 1 = today only (the
+   * product rule). Set higher for a demo so a seeded board survives the midnight rollover.
+   */
+  boardDays: Math.max(1, Number(env.BOARD_DAYS ?? 1) || 1),
   /** Hard cap on coach-initiated notifications per user per day. */
   maxNudgesPerDay: 2,
   /** Local hour at which the streak-saver goes out. */

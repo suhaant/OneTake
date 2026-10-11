@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
+import { config } from '../config.ts';
 import { dailyPrompt } from '../prompt.ts';
 import { dayIn, safeTz, streakFromDays } from '../util.ts';
 import type { Challenge, Friend, OptIn, Persona, Profile, Row, Store } from './types.ts';
@@ -130,10 +131,15 @@ export function tigerStore(connectionString: string): Store {
       return { weeklyAverages: weekly };
     },
     async todaysBoard(limit) {
+      // Today in each user's own zone, or the last BOARD_DAYS days when a demo needs a stable board.
+      const window =
+        config.boardDays > 1
+          ? `e.time > now() - make_interval(days => ${config.boardDays})`
+          : `(e.time at time zone p.tz)::date = (now() at time zone p.tz)::date`;
       const rows = await takes(
         `select p.user_id, p.name, max(e.overall) as score
            from score_events e join messaging_profiles p on p.user_id = e.user_id
-          where e.is_video and (e.time at time zone p.tz)::date = (now() at time zone p.tz)::date
+          where e.is_video and ${window}
           group by p.user_id, p.name order by score desc limit $1`,
         [limit],
       );

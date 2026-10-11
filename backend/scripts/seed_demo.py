@@ -118,7 +118,9 @@ def main() -> None:
             base = random.randint(58, 86)
             for back in range(streak_days):
                 at = (now - timedelta(days=back)).replace(hour=random.randint(8, 20), minute=random.randint(0, 59), second=0, microsecond=0)
-                if back == 0: at = min(at, now - timedelta(minutes=random.randint(5, 90)))
+                if back == 0:
+                    # Earlier today, but never before today's midnight (running this just after midnight used to land on yesterday).
+                    at = max(min(at, now - timedelta(minutes=random.randint(5, 90))), now.replace(hour=0, minute=1, second=0, microsecond=0))
                 insert_take(conn, uid, at, base + random.uniform(-6, 6))
             print(f"{name:7s} {uid}  {streak_days} day(s), around {base}")
 
