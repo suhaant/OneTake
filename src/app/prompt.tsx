@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
@@ -20,6 +20,7 @@ type Phase = 'idle' | 'intro' | 'countdown' | 'recording';
 
 export default function Prompt() {
   const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
   const { setVideoUri, promptText, takers, doneToday, me } = useApp();
   const [cam, requestCam] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
@@ -132,7 +133,7 @@ export default function Prompt() {
       </View>
 
       <View style={styles.pandaRow}>
-        <Panda pose={talking && line?.mood ? POSE[line.mood] : recording ? 'encourage' : 'idle'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
+        <Panda pose={talking && line?.mood ? POSE[line.mood] : recording ? 'encourage' : 'idle'} size={76} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
         <SpeechBubble
           text={
             talking && said
@@ -153,8 +154,8 @@ export default function Prompt() {
         </Text>
       </View>
 
-      {/* viewfinder */}
-      <View style={styles.finder}>
+      {/* viewfinder: at least half the screen, tall enough to keep face, shoulders and hands in frame */}
+      <View style={[styles.finder, { minHeight: Math.round(screenH * 0.5) }]}>
         {granted ? (
           <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="front" mode="video" mirror zoom={0} onCameraReady={() => { console.log('[onetake] camera ready'); setReady(true); }} />
         ) : (
@@ -167,7 +168,7 @@ export default function Prompt() {
         )}
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 350 420" preserveAspectRatio="xMidYMid slice">
           {/* Face guide sits in the upper third so the chest and hands have room below it. */}
-          <Ellipse cx={175} cy={140} rx={72} ry={92} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray="6 7" />
+          <Ellipse cx={175} cy={120} rx={66} ry={84} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray="6 7" />
         </Svg>
         {count != null && (
           <View pointerEvents="none" style={styles.countWrap}>
@@ -182,7 +183,7 @@ export default function Prompt() {
       </View>
 
       {/* start, then the shutter to finish early */}
-      <View style={[styles.shutterWrap, { paddingBottom: insets.bottom + 28 }]}>
+      <View style={[styles.shutterWrap, { paddingBottom: insets.bottom + 16 }]}>
         {phase === 'idle' ? (
           <>
             <ChunkyButton tone="green" label="Start" depth={6} disabled={!granted || !ready} onPress={begin} style={{ alignSelf: 'stretch', marginHorizontal: 12 }} />
@@ -243,15 +244,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pandaRow: { marginTop: 16, marginHorizontal: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  promptWrap: { marginTop: 18, marginHorizontal: 28 },
-  prompt: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 31, letterSpacing: -0.4, color: '#fff', textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
-  promptSub: { marginTop: 8, fontFamily: fonts.medium, fontSize: 14, opacity: 0.92, ...shadowText },
+  pandaRow: { marginTop: 10, marginHorizontal: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  promptWrap: { marginTop: 10, marginHorizontal: 24 },
+  prompt: { fontFamily: fonts.bold, fontSize: 19, lineHeight: 24, letterSpacing: -0.2, color: '#fff', textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
+  promptSub: { marginTop: 4, fontFamily: fonts.medium, fontSize: 12, opacity: 0.92, ...shadowText },
   finder: {
     flex: 1,
-    marginTop: 18,
-    marginHorizontal: 20,
-    minHeight: 220,
+    marginTop: 10,
+    marginHorizontal: 16,
     borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: '#1C2833',
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   permText: { fontFamily: fonts.semi, fontSize: 15, color: '#fff', textAlign: 'center', lineHeight: 21 },
   permBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 999, backgroundColor: '#fff' },
   permBtnText: { fontFamily: fonts.bold, color: colors.navy },
-  shutterWrap: { paddingTop: 16, alignItems: 'center', gap: 12 },
+  shutterWrap: { paddingTop: 12, alignItems: 'center', gap: 8 },
   shutter: { width: 78, height: 78, alignItems: 'center', justifyContent: 'center' },
   shutterDot: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E8261E' },
   shutterStop: { width: 30, height: 30, borderRadius: 7 },
