@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,11 @@ import { Close, Share } from '../components/Icons';
 import { colors, fonts } from '../theme';
 import { mockResult } from '../data/mock';
 import { useApp } from '../store';
+import { POSE, verdictLines } from '../coachLines';
+import { firstName, useCoach } from '../voice';
+
+/** Takes he has already talked through this session: reopening the screen stays quiet. */
+const spokenTakes = new Set<string>();
 
 function Bar({ label, weight, value }: { label: string; weight: string; value: number }) {
   return (
@@ -120,9 +125,18 @@ function AttentionCurve({ data, width }: { data: number[]; width: number }) {
 export default function Results() {
   const insets = useSafeAreaInsets();
   const [curveWidth, setCurveWidth] = useState(0);
-  const { result, scoreGuess } = useApp();
+  const { result, scoreGuess, me } = useApp();
+  const { coach, talking, line, said } = useCoach();
   const r = result ?? mockResult;
   const pose = r.score >= 75 ? 'celebrate' : r.score < 55 ? 'console' : 'idle';
+
+  // The verdict, once per take: great job / not too shabby / could use some work / not your best, then what to fix.
+  useEffect(() => {
+    const key = r.submissionId ?? `sample:${r.score}`;
+    if (spokenTakes.has(key)) return;
+    spokenTakes.add(key);
+    coach.say(verdictLines(firstName(me?.name), r));
+  }, [coach, r, me?.name]);
   const bubble =
     pose === 'celebrate'
       ? 'Done. That was a strong take. Details below.'
@@ -142,8 +156,8 @@ export default function Results() {
         </View>
 
         <View style={styles.pandaRow}>
-          <Panda pose={pose} headOnly size={84} />
-          <SpeechBubble text={bubble} />
+          <Panda pose={talking && line?.mood ? POSE[line.mood] : pose} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
+          <SpeechBubble text={talking && said ? said : bubble} />
         </View>
 
         <View style={styles.hero}>

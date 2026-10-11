@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +12,11 @@ import { Check, Sound } from '../components/Icons';
 import { useAnalysisMusic } from '../components/AnalysisMusic';
 import { colors, fonts, gradients } from '../theme';
 import { useApp } from '../store';
+import { POSE, almostDone, dontLine, tipLine, waitingIntro } from '../coachLines';
+import { firstName, useCoach } from '../voice';
 
-const TIP_SECONDS = 6;
+/** Once the scorer is this far along he says "almost done". */
+const ALMOST_AT = 15;
 
 /**
  * What the scorer is doing, in order, with the second each step usually starts. Scoring lands in
@@ -77,13 +80,18 @@ function GuessSlider({ value, onChange, locked }: { value: number; onChange: (v:
 
 export default function Thinking() {
   const insets = useSafeAreaInsets();
-  const { analyze, scoreGuess, setScoreGuess } = useApp();
+  const { analyze, scoreGuess, setScoreGuess, me } = useApp();
+  const { coach, talking, line, said } = useCoach();
   const [failed, setFailed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [guess, setGuess] = useState(scoreGuess ?? 72);
   const [locked, setLocked] = useState(scoreGuess != null);
   const [tip, setTip] = useState(() => Math.floor(Math.random() * tips.length));
   const [fade] = useState(() => new Animated.Value(1));
+  const elapsedRef = useRef(0);
+  useEffect(() => {
+    elapsedRef.current = elapsed;
+  }, [elapsed]);
   const music = useAnalysisMusic(!failed);
   const { fadeOut } = music;
 
@@ -108,17 +116,40 @@ export default function Thinking() {
     return () => clearInterval(id);
   }, [failed]);
 
-  // Next tip every few seconds, fading out and back in.
+  // The panda talks you through the wait: a tip, a don't, "almost done", the next tip… until the
+  // result lands (unmounting stops him). The tip card follows his voice rather than a timer.
   useEffect(() => {
     if (failed) return;
-    const id = setInterval(() => {
+    let active = true;
+    const showTip = (n: number) =>
       Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
-        setTip((t) => (t + 1) % tips.length);
+        if (!active) return;
+        setTip(n);
         Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
       });
-    }, TIP_SECONDS * 1000);
-    return () => clearInterval(id);
-  }, [failed, fade]);
+    (async () => {
+      const name = firstName(me?.name);
+      if (!(await coach.say([waitingIntro(name)]))) return;
+      let n = tip;
+      let saidAlmost = false;
+      while (active) {
+        const lines = [tipLine(n, tips[n % tips.length]), dontLine(n)];
+        if (!saidAlmost && elapsedRef.current >= ALMOST_AT) {
+          lines.push(almostDone);
+          saidAlmost = true;
+        }
+        const ok = await coach.say(lines, { onLine: (l) => l.tag === `tip:${n}` && showTip(n % tips.length) });
+        if (!ok) return;
+        n += 1;
+      }
+    })();
+    return () => {
+      active = false;
+      coach.stop();
+    };
+    // Runs once per visit: the tip index it starts from is read on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failed, fade, coach, me?.name]);
 
   const stageIndex = stages.reduce((idx, s, n) => (elapsed >= s.at ? n : idx), 0);
   const current = tips[tip];
@@ -154,8 +185,8 @@ export default function Thinking() {
       <AeroBackground />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 30, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
         <View style={styles.pandaRow}>
-          <Panda pose="thinking" headOnly size={84} />
-          <SpeechBubble text={stages[stageIndex].doing} />
+          <Panda pose={talking && line?.mood ? POSE[line.mood] : 'thinking'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
+          <SpeechBubble text={talking && said ? said : stages[stageIndex].doing} />
         </View>
 
         <Pressable accessibilityRole="button" accessibilityLabel={music.muted ? 'Turn music on' : 'Turn music off'} onPress={music.toggle} style={styles.soundBtn}>

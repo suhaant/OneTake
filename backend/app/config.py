@@ -21,6 +21,11 @@ class Settings:
     # Neuro API (see /neuro). Leave unset to turn the brain-response panel off.
     neuro_score_url: str | None = os.getenv("NEURO_SCORE_URL") or None
     neuro_timeout_seconds: int = int(os.getenv("NEURO_TIMEOUT_SECONDS", "300"))
+    # ElevenLabs (see app/voice.py). Leave the key unset to keep the panda silent.
+    elevenlabs_api_key: str | None = os.getenv("ELEVENLABS_API_KEY") or None
+    elevenlabs_voice_id: str = os.getenv("ELEVENLABS_VOICE_ID", "N2lVS1w4EtoT3dr4eOWO")  # "Callum - Husky Trickster"
+    elevenlabs_model: str = os.getenv("ELEVENLABS_MODEL", "eleven_v3")  # v3 understands [excited]-style audio tags
+    voice_dir: Path = Path(os.getenv("VOICE_DIR", "data/voice"))
 
 
 settings = Settings()

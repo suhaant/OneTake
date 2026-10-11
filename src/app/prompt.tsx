@@ -1,27 +1,43 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import Svg, { Circle, Ellipse } from 'react-native-svg';
 import AeroBackground from '../components/AeroBackground';
+import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import { SpeechBubble } from '../components/Glass';
 import { Back } from '../components/Icons';
 import { colors, fonts, skyText } from '../theme';
 import { useApp } from '../store';
+import { POSE, introLines } from '../coachLines';
+import { firstName, prefetch, useCoach } from '../voice';
 
 const TAKE_SECONDS = 30;
+/** idle: waiting for Start · intro: the panda greets and reads the prompt · countdown: 5..1 · recording */
+type Phase = 'idle' | 'intro' | 'countdown' | 'recording';
 
 export default function Prompt() {
   const insets = useSafeAreaInsets();
-  const { setVideoUri, promptText, takers, doneToday } = useApp();
+  const { setVideoUri, promptText, takers, doneToday, me } = useApp();
   const [cam, requestCam] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
-  const [recording, setRecording] = useState(false);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const recording = phase === 'recording';
+  const [count, setCount] = useState<number | null>(null);
   const [left, setLeft] = useState(TAKE_SECONDS);
   const [ready, setReady] = useState(false);
+  const { coach, talking, line, said } = useCoach();
+  const name = firstName(me?.name);
+  const lines = useMemo(() => introLines(name, promptText), [name, promptText]);
+
+  // Fetch the greeting and countdown while the user reads, so Start is instant.
+  useEffect(() => {
+    prefetch(lines.intro.text);
+    prefetch(lines.countdown.text);
+  }, [lines]);
 
   useEffect(() => {
     console.log('[onetake] prompt mounted');
@@ -30,8 +46,8 @@ export default function Prompt() {
 
   // One take a day. This also catches a tap that beat the account load: once today's take shows up, leave.
   useEffect(() => {
-    if (doneToday && !recording) router.replace('/results');
-  }, [doneToday, recording]);
+    if (doneToday && phase === 'idle') router.replace('/results');
+  }, [doneToday, phase]);
 
   useEffect(() => {
     if (cam && !cam.granted && cam.canAskAgain) requestCam();
@@ -53,9 +69,32 @@ export default function Prompt() {
     }
   }, [recording, left]);
 
-  const start = async () => {
-    if (recording || !camera.current || doneToday) return;
-    setRecording(true);
+  /** Start: the panda greets you, reads the prompt and counts down; the camera rolls on "1". */
+  const begin = async () => {
+    if (phase !== 'idle' || !camera.current || doneToday) return;
+    setPhase('intro');
+    const finished = await coach.say([lines.intro, lines.countdown], {
+      onLine: (l) => {
+        if (l === lines.countdown) setPhase('countdown');
+      },
+      onChar: (l, ch) => {
+        if (l === lines.countdown && /[1-5]/.test(ch)) setCount(Number(ch));
+      },
+    });
+    setCount(null);
+    if (finished) await record();
+  };
+
+  /** Skip the talk and roll now. */
+  const skip = () => {
+    coach.stop();
+    setCount(null);
+    record();
+  };
+
+  const record = async () => {
+    if (!camera.current || doneToday) return;
+    setPhase('recording');
     setLeft(TAKE_SECONDS);
     console.log('[onetake] recording started');
     try {
@@ -74,6 +113,9 @@ export default function Prompt() {
     camera.current?.stopRecording();
   };
 
+  // Leaving the screen mid-intro: no stray voice, no camera.
+  useEffect(() => () => coach.stop(), [coach]);
+
   const granted = cam?.granted && mic?.granted;
   const mm = `0:${left.toString().padStart(2, '0')}`;
 
@@ -90,8 +132,18 @@ export default function Prompt() {
       </View>
 
       <View style={styles.pandaRow}>
-        <Panda pose="encourage" headOnly size={84} />
-        <SpeechBubble text={recording ? 'Eyes on the lens. You are doing great.' : "Read it twice, then look at the lens. I'll start the clock when you tap."} />
+        <Panda pose={talking && line?.mood ? POSE[line.mood] : recording ? 'encourage' : 'idle'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
+        <SpeechBubble
+          text={
+            talking && said
+              ? said
+              : recording
+                ? 'Eyes on the lens. You are doing great.'
+                : phase === 'idle'
+                  ? "Read it twice, then tap Start. I'll read it back and count you in."
+                  : '…'
+          }
+        />
       </View>
 
       <View style={styles.promptWrap}>
@@ -117,40 +169,59 @@ export default function Prompt() {
           {/* Face guide sits in the upper third so the chest and hands have room below it. */}
           <Ellipse cx={175} cy={140} rx={72} ry={92} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray="6 7" />
         </Svg>
-        <Text style={styles.finderStatus}>{recording ? 'REC' : ready ? 'READY' : '…'}</Text>
+        {count != null && (
+          <View pointerEvents="none" style={styles.countWrap}>
+            <Text key={count} style={styles.count}>{count}</Text>
+          </View>
+        )}
+        <Text style={styles.finderStatus}>{recording ? 'REC' : phase !== 'idle' ? 'GET READY' : ready ? 'READY' : '…'}</Text>
         <View style={styles.timer}>
           <Text style={styles.timerText}>{mm}</Text>
         </View>
         <Text style={styles.finderHint}>Face in the oval · hands in frame · eyes on the lens</Text>
       </View>
 
-      {/* shutter */}
+      {/* start, then the shutter to finish early */}
       <View style={[styles.shutterWrap, { paddingBottom: insets.bottom + 28 }]}>
-        <Pressable
-          accessibilityLabel={recording ? 'Stop recording' : 'Start recording'}
-          onPress={recording ? stop : start}
-          disabled={!granted || !ready}
-          style={[styles.shutter, (!granted || !ready) && { opacity: 0.5 }]}
-        >
-          <Svg width={78} height={78} style={StyleSheet.absoluteFill}>
-            <Circle cx={39} cy={39} r={37} stroke="rgba(255,255,255,0.9)" strokeWidth={3} fill="none" />
-            {recording && (
-              <Circle
-                cx={39}
-                cy={39}
-                r={37}
-                stroke={colors.yellow}
-                strokeWidth={3}
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={`${(left / TAKE_SECONDS) * 232.5} 232.5`}
-                transform="rotate(-90 39 39)"
-              />
-            )}
-          </Svg>
-          <View style={[styles.shutterDot, recording && styles.shutterStop]} />
-        </Pressable>
-        <Text style={styles.shutterHint}>{recording ? 'Tap to finish early' : 'Tap to start · one take, no retakes'}</Text>
+        {phase === 'idle' ? (
+          <>
+            <ChunkyButton tone="green" label="Start" depth={6} disabled={!granted || !ready} onPress={begin} style={{ alignSelf: 'stretch', marginHorizontal: 12 }} />
+            <Text style={styles.shutterHint}>He counts you in · one take, no retakes</Text>
+          </>
+        ) : recording ? (
+          <>
+            <Pressable accessibilityLabel="Stop recording" onPress={stop} style={styles.shutter}>
+              <Svg width={78} height={78} style={StyleSheet.absoluteFill}>
+                <Circle cx={39} cy={39} r={37} stroke="rgba(255,255,255,0.9)" strokeWidth={3} fill="none" />
+                <Circle
+                  cx={39}
+                  cy={39}
+                  r={37}
+                  stroke={colors.yellow}
+                  strokeWidth={3}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(left / TAKE_SECONDS) * 232.5} 232.5`}
+                  transform="rotate(-90 39 39)"
+                />
+              </Svg>
+              <View style={[styles.shutterDot, styles.shutterStop]} />
+            </Pressable>
+            <Text style={styles.shutterHint}>Tap to finish early</Text>
+          </>
+        ) : (
+          <>
+            <View style={styles.shutter}>
+              <Svg width={78} height={78} style={StyleSheet.absoluteFill}>
+                <Circle cx={39} cy={39} r={37} stroke="rgba(255,255,255,0.5)" strokeWidth={3} fill="none" strokeDasharray="4 6" />
+              </Svg>
+              <View style={[styles.shutterDot, { opacity: 0.45 }]} />
+            </View>
+            <Pressable accessibilityLabel="Skip the countdown" onPress={skip} hitSlop={10}>
+              <Text style={styles.shutterHint}>Skip · start recording now</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </View>
   );
@@ -192,6 +263,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 10,
   },
+  countWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  count: { fontFamily: fonts.bold, fontSize: 128, lineHeight: 140, color: '#fff', textShadowColor: 'rgba(0,60,120,0.6)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 18 },
   finderStatus: { position: 'absolute', left: 16, top: 14, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1, color: '#fff', opacity: 0.9 },
   timer: { position: 'absolute', right: 14, top: 12, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   timerText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },

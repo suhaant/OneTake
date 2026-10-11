@@ -30,6 +30,8 @@ Video takes need an audio converter: macOS has `afconvert` built in; on Windows/
 
 For the **Brain response** section on the results screen (a 3D brain showing the response Meta's TRIBE v2 predicts for the take's words), also set `NEURO_SCORE_URL` in `backend/.env`. Setup and what the numbers mean: [`neuro/README.md`](neuro/README.md). Without it the section stays hidden and everything else works as before.
 
+For the **panda's voice** (he greets you by name, reads the prompt, counts you in, talks you through the wait, and reads your verdict), put an `ELEVENLABS_API_KEY` in `backend/.env` too. Lines are synthesised once and cached in `backend/data/voice/`; the app gets per-character timings back and moves his mouth, arms and face in time with the audio (`src/voice.ts`, `src/components/Panda.tsx`). Without a key he still counts you in, silently.
+
 **2. Messaging server**
 
 ```bash

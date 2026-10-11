@@ -1,15 +1,20 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Rect, G } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withRepeat,
   withSequence,
   withTiming,
+  withDelay,
   Easing,
   cancelAnimation,
+  makeMutable,
+  type SharedValue,
 } from 'react-native-reanimated';
+import type { Gesture } from '../voice';
 
 export type PandaPose = 'idle' | 'encourage' | 'thinking' | 'celebrate' | 'console';
 
@@ -22,6 +27,12 @@ type Props = {
   /** show the envelope in his paws (home screen) */
   envelope?: boolean;
   animated?: boolean;
+  /** 0 shut .. 1 open; when given, the mouth follows it (see Coach in ../voice) */
+  mouth?: SharedValue<number>;
+  /** pulses at every word; the body leans into it */
+  beat?: SharedValue<number>;
+  /** what the arms do; defaults to the pose's own gesture */
+  gesture?: Gesture;
 };
 
 const INK = '#1C1C1C';
@@ -29,6 +40,41 @@ const PAD = '#F5955A';
 const BLUSH = '#F7A8B8';
 const PHONE = '#5BB8E8';
 const PHONE_LIGHT = '#8FD3F5';
+const TONGUE = '#F08A9B';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
+
+const ZERO = makeMutable(0);
+
+/** Shoulder pivots; an arm hangs 52 px below its pivot at rotation 0. */
+const SHOULDER = { left: { x: 62, y: 170 }, right: { x: 158, y: 170 } } as const;
+/** Arm rotations (degrees) per gesture: the left arm raises with positive angles, the right with negative. */
+const ARMS: Record<Gesture | 'reach', { left: number; right: number }> = {
+  none: { left: 18, right: -18 },
+  wave: { left: 18, right: -150 },
+  point: { left: 18, right: -92 },
+  count: { left: 18, right: -160 },
+  cheer: { left: 150, right: -150 },
+  shrug: { left: 62, right: -62 },
+  thumbs: { left: 18, right: -118 },
+  reach: { left: 18, right: -72 },
+};
+
+function defaultGesture(pose: PandaPose): Gesture | 'reach' | 'chin' {
+  switch (pose) {
+    case 'celebrate':
+      return 'cheer';
+    case 'encourage':
+      return 'thumbs';
+    case 'console':
+      return 'reach';
+    case 'thinking':
+      return 'chin';
+    default:
+      return 'none';
+  }
+}
 
 function Foot({ cx }: { cx: number }) {
   return (
@@ -55,11 +101,57 @@ function Paw({ cx, cy, r = 14 }: { cx: number; cy: number; r?: number }) {
   );
 }
 
-function Head({ pose }: { pose: PandaPose }) {
+/**
+ * One arm, drawn hanging straight down from its shoulder in its own layer and rotated about the
+ * shoulder with a view transform (react-native-svg resolves transforms in JS, so they cannot be
+ * driven from the UI thread the way `d` and `ry` can).
+ */
+function Arm({ side, rotation, thumb, size, height }: { side: 'left' | 'right'; rotation: SharedValue<number>; thumb: boolean; size: number; height: number }) {
+  const { x, y } = SHOULDER[side];
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: `${(x / 220) * 100}% ${(y / 266) * 100}%` }, style]}>
+      <Svg width={size} height={height} viewBox="0 0 220 266">
+        <Ellipse cx={x} cy={y + 26} rx={15} ry={30} fill={INK} />
+        <Paw cx={x} cy={y + 52} />
+        {thumb && <Rect x={x + 10} y={y + 42} width={9} height={22} rx={4.5} fill={INK} transform={`rotate(-100 ${x + 14} ${y + 53})`} />}
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** The mouth follows the voice: a smile when shut, opening wider on vowels, with the tongue showing. */
+function TalkingMouth({ mouth, pose }: { mouth: SharedValue<number>; pose: PandaPose }) {
+  const sad = pose === 'console';
+  const lips = useAnimatedProps(() => {
+    const m = mouth.value;
+    const w = 8 + 6 * m;
+    const h = (sad ? 5 : 9) + 20 * m;
+    const top = sad && m < 0.15 ? 139 : 134;
+    const lift = sad ? -4 * (1 - m) : 0;
+    return { d: `M${110 - w} ${top} Q110 ${top + lift} ${110 + w} ${top} Q110 ${top + h} ${110 - w} ${top} Z` };
+  });
+  const tongue = useAnimatedProps(() => {
+    const m = mouth.value;
+    const w = 3 + 4 * m;
+    const h = 2 + 10 * m;
+    return { d: `M${110 - w} ${146 + 4 * m} Q110 ${146 + 4 * m + h} ${110 + w} ${146 + 4 * m} Z`, opacity: Math.min(1, m * 1.6) };
+  });
+  return (
+    <>
+      <AnimatedPath animatedProps={lips} fill={INK} />
+      <AnimatedPath animatedProps={tongue} fill={TONGUE} />
+    </>
+  );
+}
+
+function Head({ pose, mouth, blink }: { pose: PandaPose; mouth?: SharedValue<number>; blink: SharedValue<number> }) {
   const happy = pose === 'celebrate';
   const sad = pose === 'console';
   const think = pose === 'thinking';
   const dy = sad ? 2 : 0;
+  const lidL = useAnimatedProps(() => ({ ry: 11.5 * blink.value }));
+  const lidR = useAnimatedProps(() => ({ ry: 11.5 * blink.value }));
   return (
     <G transform={sad ? 'rotate(6 110 150)' : undefined}>
       <Circle cx={50} cy={44} r={24} fill={INK} />
@@ -86,6 +178,9 @@ function Head({ pose }: { pose: PandaPose }) {
           <Circle cx={133 + (think ? 3 : 0)} cy={103 + dy - (think ? 4 : 0)} r={6.5} fill={INK} />
           <Circle cx={84 + (think ? 1 : 0)} cy={99 + dy - (think ? 4 : 0)} r={2.6} fill="#fff" />
           <Circle cx={130 + (think ? 3 : 0)} cy={99 + dy - (think ? 4 : 0)} r={2.6} fill="#fff" />
+          {/* eyelids, the colour of the patches, close over the whites when he blinks */}
+          <AnimatedEllipse cx={86} cy={102 + dy} rx={11.5} animatedProps={lidL} fill={INK} />
+          <AnimatedEllipse cx={134} cy={102 + dy} rx={11.5} animatedProps={lidR} fill={INK} />
         </>
       )}
       {sad && (
@@ -97,19 +192,21 @@ function Head({ pose }: { pose: PandaPose }) {
       <Ellipse cx={60} cy={128} rx={11} ry={6} fill={BLUSH} />
       <Ellipse cx={160} cy={128} rx={11} ry={6} fill={BLUSH} />
       <Path d="M104 121 Q110 118 116 121 Q113 128 110 129 Q107 128 104 121 Z" fill={INK} />
-      {think ? (
+      {mouth ? (
+        <TalkingMouth mouth={mouth} pose={pose} />
+      ) : think ? (
         <Path d="M103 138 L117 138" fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
       ) : sad ? (
         <Path d="M103 139 Q110 135 117 139" fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
       ) : happy ? (
         <>
           <Path d="M98 133 Q110 154 122 133 Z" fill={INK} />
-          <Path d="M104 141 Q110 149 116 141 Z" fill="#F08A9B" />
+          <Path d="M104 141 Q110 149 116 141 Z" fill={TONGUE} />
         </>
       ) : (
         <>
           <Path d="M102 135 Q110 146 118 135 Z" fill={INK} />
-          <Path d="M106 138 Q110 143 114 138 Z" fill="#F08A9B" />
+          <Path d="M106 138 Q110 143 114 138 Z" fill={TONGUE} />
         </>
       )}
     </G>
@@ -126,10 +223,19 @@ function Envelope() {
   );
 }
 
-export default function Panda({ pose = 'idle', size = 180, headOnly = false, envelope = false, animated = true }: Props) {
+export default function Panda({ pose = 'idle', size = 180, headOnly = false, envelope = false, animated = true, mouth, beat, gesture }: Props) {
   const ty = useSharedValue(0);
   const rot = useSharedValue(0);
   const sc = useSharedValue(1);
+  const blink = useSharedValue(0);
+  const armL = useSharedValue(ARMS.none.left);
+  const armR = useSharedValue(ARMS.none.right);
+  const beatValue = beat ?? ZERO;
+  const mouthValue = mouth ?? ZERO;
+
+  const arms: Gesture | 'reach' | 'chin' = gesture ?? defaultGesture(pose);
+  const chin = arms === 'chin';
+  const thumb = arms === 'thumbs';
 
   useEffect(() => {
     cancelAnimation(ty);
@@ -159,64 +265,75 @@ export default function Panda({ pose = 'idle', size = 180, headOnly = false, env
         sc.value = withRepeat(withSequence(withTiming(1.04, { duration: 380 }), withTiming(0.97, { duration: 420 }), withTiming(1, { duration: 500 })), -1);
         break;
     }
-  }, [pose, animated, ty, rot, sc]);
+    if (arms === 'shrug') rot.value = withSequence(withTiming(-5, { duration: 300 }), withTiming(0, { duration: 500 }));
+  }, [pose, arms, animated, ty, rot, sc]);
+
+  // Arms: ease to the gesture, then keep it alive (a wave waves, a count bounces, a point nods).
+  useEffect(() => {
+    cancelAnimation(armL);
+    cancelAnimation(armR);
+    const target = arms === 'chin' ? ARMS.none : ARMS[arms];
+    const ease = Easing.out(Easing.back(1.4));
+    armL.value = withTiming(target.left, { duration: 420, easing: ease });
+    const settle = withTiming(target.right, { duration: 420, easing: ease });
+    const sway = Easing.inOut(Easing.ease);
+    switch (animated ? arms : 'none') {
+      case 'wave':
+        armR.value = withSequence(settle, withRepeat(withSequence(withTiming(target.right + 22, { duration: 260, easing: sway }), withTiming(target.right - 8, { duration: 260, easing: sway })), -1));
+        break;
+      case 'point':
+        armR.value = withSequence(settle, withRepeat(withSequence(withTiming(target.right + 7, { duration: 700, easing: sway }), withTiming(target.right, { duration: 700, easing: sway })), -1));
+        break;
+      case 'count':
+        armR.value = withSequence(settle, withRepeat(withSequence(withTiming(target.right + 14, { duration: 450, easing: sway }), withTiming(target.right, { duration: 450, easing: sway })), -1));
+        break;
+      case 'cheer':
+        armR.value = withSequence(settle, withRepeat(withSequence(withTiming(target.right + 10, { duration: 400, easing: sway }), withTiming(target.right, { duration: 400, easing: sway })), -1));
+        armL.value = withSequence(withTiming(target.left, { duration: 420, easing: ease }), withRepeat(withSequence(withTiming(target.left - 10, { duration: 400, easing: sway }), withTiming(target.left, { duration: 400, easing: sway })), -1));
+        break;
+      default:
+        armR.value = settle;
+    }
+  }, [arms, animated, armL, armR]);
+
+  // He blinks every few seconds, a little sooner when excited.
+  useEffect(() => {
+    cancelAnimation(blink);
+    blink.value = 0;
+    if (!animated) return;
+    const gap = pose === 'celebrate' ? 2200 : 3400;
+    blink.value = withRepeat(withSequence(withDelay(gap + Math.random() * 1500, withTiming(1, { duration: 70 })), withTiming(0, { duration: 110 })), -1);
+  }, [pose, animated, blink]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: ty.value }, { rotate: `${rot.value}deg` }, { scale: sc.value }],
+    transform: [
+      { translateY: ty.value - mouthValue.value * 2 - beatValue.value * 3 },
+      { rotate: `${rot.value + beatValue.value * (arms === 'count' ? 0 : 1.5)}deg` },
+      { scale: sc.value },
+      { scaleY: 1 - beatValue.value * 0.035 },
+    ],
   }));
 
   const vb = headOnly ? '16 12 188 156' : '0 0 220 266';
   const h = headOnly ? size * (156 / 188) : size * (266 / 220);
 
-  const armsUp = pose === 'celebrate';
-  const thumbs = pose === 'encourage';
-  const chin = pose === 'thinking';
-  const reach = pose === 'console';
-
   return (
     <Animated.View style={[{ width: size, height: h, transformOrigin: 'bottom' }, style]}>
-      <Svg width={size} height={h} viewBox={vb}>
-        {!headOnly && (
-          <>
+      {!headOnly && (
+        <>
+          <Svg width={size} height={h} viewBox={vb} style={StyleSheet.absoluteFill}>
             <Ellipse cx={110} cy={258} rx={78} ry={8} fill="rgba(0,40,80,0.18)" />
             <Foot cx={70} />
             <Foot cx={150} />
             <Ellipse cx={110} cy={198} rx={60} ry={52} fill="#fff" stroke={INK} strokeWidth={3.5} />
             <Ellipse cx={110} cy={210} rx={38} ry={34} fill="#EEF0F2" />
-            {/* left arm */}
-            {armsUp ? (
-              <>
-                <Ellipse cx={46} cy={168} rx={15} ry={34} fill={INK} transform="rotate(40 46 168)" />
-                <Paw cx={28} cy={142} />
-              </>
-            ) : (
-              <Ellipse cx={58} cy={196} rx={15} ry={32} fill={INK} transform="rotate(22 58 196)" />
-            )}
-            {/* right arm */}
-            {armsUp ? (
-              <>
-                <Ellipse cx={174} cy={168} rx={15} ry={34} fill={INK} transform="rotate(-40 174 168)" />
-                <Paw cx={192} cy={142} />
-              </>
-            ) : thumbs ? (
-              <>
-                <Ellipse cx={168} cy={188} rx={15} ry={32} fill={INK} transform="rotate(-45 168 188)" />
-                <Circle cx={188} cy={164} r={13} fill={INK} />
-                <Rect x={184} y={138} width={9} height={22} rx={4.5} fill={INK} />
-                <Ellipse cx={188} cy={167} rx={6} ry={4} fill={PAD} />
-              </>
-            ) : reach ? (
-              <>
-                <Ellipse cx={172} cy={202} rx={15} ry={32} fill={INK} transform="rotate(-78 172 202)" />
-                <Circle cx={202} cy={196} r={13} fill={INK} />
-                <Ellipse cx={202} cy={199} rx={6} ry={4} fill={PAD} />
-              </>
-            ) : chin ? null : (
-              <Ellipse cx={162} cy={196} rx={15} ry={32} fill={INK} transform="rotate(-22 162 196)" />
-            )}
-          </>
-        )}
-        <Head pose={pose} />
+          </Svg>
+          <Arm side="left" rotation={armL} thumb={false} size={size} height={h} />
+          {!chin && <Arm side="right" rotation={armR} thumb={thumb} size={size} height={h} />}
+        </>
+      )}
+      <Svg width={size} height={h} viewBox={vb}>
+        <Head pose={pose} mouth={mouth} blink={blink} />
         {!headOnly && chin && (
           <>
             <Ellipse cx={166} cy={168} rx={15} ry={34} fill={INK} transform="rotate(-60 166 168)" />
@@ -233,9 +350,7 @@ export default function Panda({ pose = 'idle', size = 180, headOnly = false, env
             <Ellipse cx={142} cy={227} rx={6} ry={4} fill={PAD} />
           </>
         )}
-        {!headOnly && !envelope && !armsUp && (
-          <Path d="M186 126 Q198 180 186 232" fill="none" stroke={INK} strokeWidth={2.5} />
-        )}
+        {!headOnly && !envelope && arms === 'none' && <Path d="M186 126 Q198 180 186 232" fill="none" stroke={INK} strokeWidth={2.5} />}
       </Svg>
       {pose === 'thinking' && <ThinkingDots />}
     </Animated.View>

@@ -8,11 +8,12 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import neuro
+from . import neuro, voice
 from .audio import analyze_audio
 from .config import settings
 from .scoring import VISUAL_METRICS, category_scores, filler_score, overall_score, rubric_score
@@ -45,6 +46,10 @@ logger = logging.getLogger(__name__)
 class SubmissionAccepted(BaseModel):
     submission_id: str
     status: str
+
+
+class VoiceRequest(BaseModel):
+    text: str
 
 
 @app.get("/health")
@@ -133,6 +138,29 @@ def get_neuro(submission_id: str, brain: bool = True) -> dict:
     result = neuro.get(submission_id, submission)
     if not brain: result.pop("brain", None)
     return result
+
+
+@app.post("/api/voice")
+def speak(req: VoiceRequest) -> dict:
+    """The panda says a line. Returns per-character timings for lip sync; the audio is at /api/voice/{id}.mp3.
+
+    503 when no ElevenLabs key is configured, so the app can fall back to a silent panda.
+    """
+    if not voice.enabled(): raise HTTPException(503, "ELEVENLABS_API_KEY is not configured")
+    try:
+        return voice.synthesize(req.text)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except RuntimeError as exc:
+        logger.warning("Voice line failed: %s", exc)
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.get("/api/voice/{line_id}.mp3")
+def voice_audio(line_id: str) -> FileResponse:
+    path = voice.audio_path(line_id)
+    if not path: raise HTTPException(404, "No such line")
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/api/users/{user_id}/progress")
