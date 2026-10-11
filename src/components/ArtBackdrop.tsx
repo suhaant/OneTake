@@ -19,7 +19,7 @@ const ART: Record<Art, number> = {
 export default function ArtBackdrop({ art }: { art: Art }) {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image source={ART[art]} resizeMode="cover" style={StyleSheet.absoluteFill} />
+      <Image source={ART[art]} resizeMode="cover" style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} />
       {/* a whisper of depth at the very top so the status bar and stat pills read */}
       <LinearGradient colors={['rgba(10,78,138,0.14)', 'rgba(10,78,138,0)']} locations={[0, 0.22]} style={StyleSheet.absoluteFill} />
     </View>
