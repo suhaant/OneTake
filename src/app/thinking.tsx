@@ -135,7 +135,7 @@ export default function Thinking() {
 
   return (
     <View style={styles.root}>
-      <AeroBackground art="island" />
+      <AeroBackground video="grass" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: GRASS_HEIGHT * 0.55 + insets.bottom, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
         <View style={styles.pandaRow}>
           <Panda pose={talking && line?.mood ? POSE[line.mood] : 'thinking'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />

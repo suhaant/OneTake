@@ -18,6 +18,8 @@ type Props = {
   video?: Clip;
   /** one of the Gemini-rendered stills full-bleed instead of the painted sky; soap bubbles still drift over it */
   art?: Art;
+  /** with video: the still to hold under the footage until the first frame lands (and if playback is refused) */
+  poster?: Art;
   /** show the glossy grass hills at the bottom */
   hills?: boolean;
   /** show the stream winding between the hills (needs hills) */
@@ -57,7 +59,7 @@ const CLOUDS = [
   { y: 0.31, scale: 0.5, speed: 170000, start: 0.3, far: true },
 ];
 
-export default function AeroBackground({ video, art, hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
+export default function AeroBackground({ video, art, poster, hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
   const { width, height } = useWindowDimensions();
   const h = height;
   const w = width;
@@ -76,6 +78,7 @@ export default function AeroBackground({ video, art, hills = true, water = true,
     return (
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <LinearGradient colors={[...sky]} locations={[...locations]} style={StyleSheet.absoluteFill} />
+        {poster && <ArtBackdrop art={poster} />}
         <VideoBackdrop clip={video} />
         <LinearGradient colors={['rgba(10,78,138,0.18)', 'rgba(10,78,138,0)']} locations={[0, 0.25]} style={StyleSheet.absoluteFill} />
       </View>

@@ -21,16 +21,18 @@ const SCENES = {
     'soft sun glow at upper left. Serene, spacious.',
   // friends, you, results
   sky:
-    'Vertical 9:16 scene. Almost entirely open sky blue gradient, brighter and paler toward the bottom, a few thin wispy clouds high up, ' +
-    'a faint sun flare in the upper left and tiny out-of-focus light orbs. Minimal, calm, spacious. Nothing in the center.',
+    'Vertical 9:16 scene. Top: clear sky blue with a soft sun glow at upper left and two or three fluffy white cumulus clouds in the upper corners, ' +
+    'nothing in the center. Bottom third: distant, soft-focus glossy green rolling hills with a sliver of still turquoise lake between them, ' +
+    'a few small translucent bubbles drifting up from the hills. Dreamy, spacious, calm.',
   // share
   bubbles:
     'Vertical 9:16 scene. Soft sky blue gradient with four or five large translucent iridescent soap bubbles floating near the edges and corners, ' +
     'each with a thin glossy rim and a small specular highlight, out of focus ones in the distance. Center of the frame empty. Light, playful, calm.',
   // progress and leaderboard
   water:
-    'Vertical 9:16 scene. Top half: pale clear sky blue fading to white. Bottom half: a calm, glassy turquoise water surface seen from low above, ' +
-    'gentle light caustics and a soft horizon glow where sky meets water, one or two small ripples. Clean, cool, quiet.',
+    'Vertical 9:16 scene. Top 40%: pale clear sky blue with one soft cloud high in a corner. Bottom 60%: calm, glassy, shallow turquoise water ' +
+    'with gentle light caustics and one or two small ripples, and a lush glossy green grassy bank with dew drops curving in from the bottom left corner. ' +
+    'Soft horizon glow where sky meets water. Clean, cool, quiet, center of the frame open.',
   // the prompt reel and the record screen
   meadow:
     'Vertical 9:16 scene. Clear sky blue at the top with a soft sun glow. Lower third: glossy, dewy, bright green grass blades seen close up and slightly out of focus, ' +

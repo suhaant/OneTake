@@ -39,8 +39,8 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      {/* one shot: clouds up top, the grass island and water below the path */}
-      <AeroBackground art="island" />
+      {/* the island still, animated by Veo: grass and water stirring in a light wind, clouds drifting */}
+      <AeroBackground video="island" poster="island" />
 
       {/* stat bar */}
       <View style={[styles.statBar, { top: insets.top + 8 }]}>
@@ -138,7 +138,7 @@ export default function Home() {
             />
           </View>
           <View style={{ marginTop: 14 }}>
-            <Chip text={done && todayScore != null ? `Today · ${todayScore}` : 'Today'} tone="green" />
+            <Chip text={done && todayScore != null ? `Today · ${todayScore}` : 'Today'} tone="solidBlue" />
           </View>
         </View>
 
