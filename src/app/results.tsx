@@ -146,7 +146,7 @@ export default function Results() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AeroBackground hills={false} locations={[0, 0.4, 1, 1]} />
+      <AeroBackground video="sky" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your take</Text>

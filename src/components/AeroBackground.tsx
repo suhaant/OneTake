@@ -6,12 +6,15 @@ import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withRepea
 import { sky } from '../theme';
 import Bubbles from './Bubbles';
 import { DriftingLeaf } from './Grass';
+import VideoBackdrop, { type Clip } from './VideoBackdrop';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 type Bubble = { x: number; y: number; r: number };
 
 type Props = {
+  /** play one of the reference clips full-bleed instead of the painted sky */
+  video?: Clip;
   /** show the glossy grass hills at the bottom */
   hills?: boolean;
   /** show the stream winding between the hills (needs hills) */
@@ -51,10 +54,21 @@ const CLOUDS = [
   { y: 0.31, scale: 0.5, speed: 170000, start: 0.3, far: true },
 ];
 
-export default function AeroBackground({ hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
+export default function AeroBackground({ video, hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
   const { width, height } = useWindowDimensions();
   const h = height;
   const w = width;
+
+  if (video) {
+    // The footage carries the scene; the gradient only shows until the first frame lands.
+    return (
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <LinearGradient colors={[...sky]} locations={[...locations]} style={StyleSheet.absoluteFill} />
+        <VideoBackdrop clip={video} />
+        <LinearGradient colors={['rgba(10,78,138,0.18)', 'rgba(10,78,138,0)']} locations={[0, 0.25]} style={StyleSheet.absoluteFill} />
+      </View>
+    );
+  }
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>

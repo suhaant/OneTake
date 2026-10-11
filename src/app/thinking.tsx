@@ -6,8 +6,6 @@ import AeroBackground from '../components/AeroBackground';
 import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import { GlassCard, SpeechBubble } from '../components/Glass';
-import Grass from '../components/Grass';
-import Bubbles from '../components/Bubbles';
 import EcoProgress from '../components/EcoProgress';
 import { Check, Sound } from '../components/Icons';
 import { useAnalysisMusic } from '../components/AnalysisMusic';
@@ -16,7 +14,7 @@ import { useApp } from '../store';
 import { POSE, almostDone, dontLine, tipLine, waitingIntro } from '../coachLines';
 import { firstName, useCoach } from '../voice';
 
-/** The meadow at the foot of the screen; the cards stop above its tallest blades. */
+/** The island clip's grass sits at the foot of the screen; the cards stop above it. */
 const GRASS_HEIGHT = 300;
 /** Once the scorer is this far along he says "almost done". */
 const ALMOST_AT = 15;
@@ -137,9 +135,7 @@ export default function Thinking() {
 
   return (
     <View style={styles.root}>
-      <AeroBackground hills={false} />
-      <Grass height={GRASS_HEIGHT} water />
-      <Bubbles />
+      <AeroBackground video="island" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: GRASS_HEIGHT * 0.55 + insets.bottom, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
         <View style={styles.pandaRow}>
           <Panda pose={talking && line?.mood ? POSE[line.mood] : 'thinking'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />

@@ -12,12 +12,15 @@ type Props = {
   leaves?: boolean;
 };
 
-/** Painted meadow rows, far to near: shorter and paler at the back, taller and deeper at the front. */
+/**
+ * Blades as in the reference footage: few, broad, tall and glossy, each lit down its spine with a
+ * darker edge, carrying fat dew drops. Back row pale and short, front row deep green and tall.
+ */
 const ROWS = [
-  { y: 0.52, count: 70, h: [26, 46], w: 5, lean: 10, colors: ['#D9F58A', '#8ED53E'], period: 4200, amp: 5, delay: 600, dew: 0 },
-  { y: 0.64, count: 60, h: [38, 66], w: 6.5, lean: 14, colors: ['#BDEB63', '#62BE27'], period: 3600, amp: 7, delay: 300, dew: 0 },
-  { y: 0.78, count: 50, h: [56, 92], w: 8, lean: 18, colors: ['#9EDB45', '#3FA51C'], period: 3100, amp: 9, delay: 0, dew: 0.22 },
-  { y: 0.94, count: 42, h: [78, 126], w: 10, lean: 24, colors: ['#7CCB34', '#2E8A14'], period: 2700, amp: 12, delay: 900, dew: 0.35 },
+  { y: 0.62, count: 16, h: [70, 120], w: 22, lean: 22, colors: ['#B9E85C', '#7CC732'], period: 4200, amp: 4, delay: 600, dew: 0.12 },
+  { y: 0.78, count: 13, h: [110, 180], w: 30, lean: 30, colors: ['#9BDB44', '#55B423'], period: 3600, amp: 5, delay: 300, dew: 0.22 },
+  { y: 0.92, count: 11, h: [150, 240], w: 40, lean: 40, colors: ['#7ECC33', '#3CA41A'], period: 3100, amp: 6, delay: 0, dew: 0.32 },
+  { y: 1.04, count: 8, h: [180, 290], w: 52, lean: 50, colors: ['#6BBE2A', '#2B8713'], period: 2700, amp: 7, delay: 900, dew: 0.4 },
 ] as const;
 
 /** Deterministic noise so the field looks the same every visit. */
@@ -71,11 +74,12 @@ function Row({ row, width, height, index }: { row: (typeof ROWS)[number]; width:
       const lean = (noise(i, index + 20) - 0.3) * row.lean * 2;
       const w = row.w * (0.7 + noise(i, index + 30) * 0.6);
       const mix = noise(i, index + 40);
-      out.push({ d: blade(x, base + 2, h, w, lean), s: spine(x, base + 2, h, lean), fill: mix > 0.5 ? row.colors[0] : row.colors[1], opacity: 0.85 + mix * 0.15, w });
-      // Dew sits where the blade starts to bend, a little off its spine.
-      if (noise(i, index + 50) < row.dew) {
-        const at = 0.45 + noise(i, index + 60) * 0.3;
-        dew.push({ cx: x + lean * at * 0.8 + (noise(i, index + 70) - 0.5) * w * 0.6, cy: base - h * at, r: 2.2 + noise(i, index + 80) * 2.4, glint: noise(i, index + 90) });
+      out.push({ d: blade(x, base + 2, h, w, lean), s: spine(x, base + 2, h, lean), fill: mix > 0.5 ? `url(#bladeA${index})` : `url(#bladeB${index})`, opacity: 0.92 + mix * 0.08, w });
+      // Dew sits where the blade starts to bend, a little off its spine; big blades carry two.
+      const drops = noise(i, index + 50) < row.dew ? 1 : 0;
+      for (let k = 0; k < drops; k++) {
+        const at = 0.3 + noise(i + k * 7, index + 60) * 0.45;
+        dew.push({ cx: x + lean * at * 0.8 + (noise(i + k, index + 70) - 0.5) * w * 0.5, cy: base - h * at, r: 3.5 + noise(i + k, index + 80) * 5, glint: noise(i + k, index + 90) });
       }
     }
     return { blades: out, drops: dew };
@@ -85,6 +89,21 @@ function Row({ row, width, height, index }: { row: (typeof ROWS)[number]; width:
     <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: `50% ${row.y * 100}%` }, style]}>
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
+          <LinearGradient id={`bladeA${index}`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={row.colors[1]} />
+            <Stop offset="0.42" stopColor={row.colors[0]} />
+            <Stop offset="0.6" stopColor="#D9F77E" />
+            <Stop offset="1" stopColor={row.colors[1]} />
+          </LinearGradient>
+          <LinearGradient id={`bladeB${index}`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={row.colors[1]} />
+            <Stop offset="0.5" stopColor={row.colors[0]} />
+            <Stop offset="1" stopColor={row.colors[1]} />
+          </LinearGradient>
+          <LinearGradient id={`bladeShade${index}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#000" stopOpacity={0} />
+            <Stop offset="1" stopColor="#1E6A0C" stopOpacity={0.55} />
+          </LinearGradient>
           <RadialGradient id={`dew${index}`} cx="35%" cy="30%" r="70%">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.95} />
             <Stop offset="0.45" stopColor="#E4FBFF" stopOpacity={0.55} />
@@ -94,14 +113,16 @@ function Row({ row, width, height, index }: { row: (typeof ROWS)[number]; width:
         {blades.map((b, i) => (
           <React.Fragment key={i}>
             <Path d={b.d} fill={b.fill} opacity={b.opacity} />
-            <Path d={b.s} fill="none" stroke="#F4FFC2" strokeOpacity={0.55} strokeWidth={Math.max(1, b.w * 0.22)} strokeLinecap="round" />
+            <Path d={b.d} fill={`url(#bladeShade${index})`} />
+            <Path d={b.s} fill="none" stroke="#F4FFC2" strokeOpacity={0.7} strokeWidth={Math.max(1.5, b.w * 0.14)} strokeLinecap="round" />
           </React.Fragment>
         ))}
         {drops.map((d, i) => (
           <React.Fragment key={`d${i}`}>
             <Ellipse cx={d.cx} cy={d.cy + d.r * 0.9} rx={d.r * 1.1} ry={d.r * 0.5} fill="#1E6A0C" opacity={0.18} />
-            <Circle cx={d.cx} cy={d.cy} r={d.r} fill={`url(#dew${index})`} stroke="#fff" strokeOpacity={0.8} strokeWidth={0.8} />
-            <Circle cx={d.cx - d.r * 0.35} cy={d.cy - d.r * 0.4} r={d.r * 0.3} fill="#fff" />
+            <Circle cx={d.cx} cy={d.cy} r={d.r} fill={`url(#dew${index})`} stroke="#fff" strokeOpacity={0.85} strokeWidth={1} />
+            <Ellipse cx={d.cx - d.r * 0.3} cy={d.cy - d.r * 0.38} rx={d.r * 0.36} ry={d.r * 0.24} fill="#fff" transform={`rotate(-30 ${d.cx - d.r * 0.3} ${d.cy - d.r * 0.38})`} />
+            <Circle cx={d.cx + d.r * 0.35} cy={d.cy + d.r * 0.4} r={d.r * 0.14} fill="#fff" opacity={0.8} />
           </React.Fragment>
         ))}
       </Svg>
