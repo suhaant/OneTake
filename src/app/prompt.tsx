@@ -15,7 +15,7 @@ const TAKE_SECONDS = 30;
 
 export default function Prompt() {
   const insets = useSafeAreaInsets();
-  const { setVideoUri, promptText, takers } = useApp();
+  const { setVideoUri, promptText, takers, doneToday } = useApp();
   const [cam, requestCam] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
@@ -27,6 +27,11 @@ export default function Prompt() {
     console.log('[onetake] prompt mounted');
     return () => console.log('[onetake] prompt unmounted');
   }, []);
+
+  // One take a day. This also catches a tap that beat the account load: once today's take shows up, leave.
+  useEffect(() => {
+    if (doneToday && !recording) router.replace('/results');
+  }, [doneToday, recording]);
 
   useEffect(() => {
     if (cam && !cam.granted && cam.canAskAgain) requestCam();
@@ -49,7 +54,7 @@ export default function Prompt() {
   }, [recording, left]);
 
   const start = async () => {
-    if (recording || !camera.current) return;
+    if (recording || !camera.current || doneToday) return;
     setRecording(true);
     setLeft(TAKE_SECONDS);
     console.log('[onetake] recording started');
