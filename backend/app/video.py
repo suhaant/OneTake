@@ -9,7 +9,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from .config import settings
-from .gemini import get_gemini_client
+from .gemini import generate, get_gemini_client
 
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,9 @@ Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1)
 - body_language: hand gestures. 1 hands hidden, frozen, or fidgeting, 3 occasional gestures loosely tied to the words, 5 purposeful, varied gestures that reinforce key points.
 The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3.0 and say only that it was out of view, without advising on camera setup.
 Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead."""
-    response = client.models.generate_content(
-        model=settings.video_model, contents=[uploaded_video, prompt],
-        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=DeliveryEvaluation),
+    response = generate(
+        settings.video_model, [uploaded_video, prompt],
+        types.GenerateContentConfig(response_mime_type="application/json", response_schema=DeliveryEvaluation),
+        what="delivery evaluation",
     )
     return DeliveryEvaluation.model_validate_json(response.text)

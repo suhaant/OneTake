@@ -6,7 +6,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from .config import settings
-from .gemini import get_gemini_client
+from .gemini import generate
 
 VocabularyLevel = Literal["basic", "everyday", "varied", "precise"]
 
@@ -43,8 +43,9 @@ closing: 1 trails off, abandoned sentence, or "yeah so that's it", 3 restates th
 contextual_fillers: count only filler uses of "like", "you know", "I mean", "basically", "actually", "literally", "kind of", "sort of", and "right?" plus immediately repeated words or restarted phrases (e.g. "because because"). Do not count um, uh, er, ah, or hmm; those are counted separately.
 filler_examples: the contextual filler phrases you counted, verbatim and short (e.g. "like", "you know", "because because"). Empty if none.
 suggestions: 2 to 4 concrete rewrites the speaker can apply next time. Each one quotes the exact phrase from the transcript and gives the better version, e.g. 'Replace "stuff like that" with "protected bike lanes and lower speed limits".' Prioritize the changes that would raise the ratings above the most. No generic advice."""
-    response = get_gemini_client().models.generate_content(
-        model=settings.semantic_model, contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=SemanticEvaluation),
+    response = generate(
+        settings.semantic_model, prompt,
+        types.GenerateContentConfig(response_mime_type="application/json", response_schema=SemanticEvaluation),
+        what="content evaluation",
     )
     return SemanticEvaluation.model_validate_json(response.text)
