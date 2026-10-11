@@ -14,12 +14,20 @@ const PROMPT =
   'tiny ripples drift slowly across the lake surface with soft glints, the clouds drift very slowly. Keep everything else unchanged. ' +
   'Subtle, calm, slow, seamless, Frutiger Aero, no people, no animals, no text, no new objects.';
 
+/** Per-scene motion notes appended to the base prompt. */
+const MOTION = {
+  island:
+    ' The clouds drift steadily across the sky from left to right, clearly moving over the eight seconds, ' +
+    'the sun glow stays fixed, the grass ripples in long waves and the lake shimmers.',
+  meadow: ' The grass blades sway gently, dew drops glint, no splashes, no falling water.',
+};
+
 const img = await readFile(`assets/art/${scene}.jpg`);
 const start = await fetch(`${base}/models/${MODEL}:predictLongRunning?key=${KEY}`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    instances: [{ prompt: PROMPT, image: { bytesBase64Encoded: img.toString('base64'), mimeType: 'image/jpeg' } }],
+    instances: [{ prompt: PROMPT + (MOTION[scene] ?? ''), image: { bytesBase64Encoded: img.toString('base64'), mimeType: 'image/jpeg' } }],
     parameters: { aspectRatio: '9:16', resolution: '720p', durationSeconds: 8 },
   }),
 });

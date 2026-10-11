@@ -26,7 +26,7 @@ type Props = {
   water?: boolean;
   /** large dew droplets bobbing in place, positions as fractions of the screen */
   bubbles?: Bubble[];
-  /** soap bubbles drifting up the screen; 0 turns them off */
+  /** soap bubbles drifting up the screen; 0 turns them off (also layered over footage) */
   drift?: number;
   /** cumulus clouds crossing the sky */
   clouds?: boolean;
@@ -80,6 +80,8 @@ export default function AeroBackground({ video, art, poster, hills = true, water
         <LinearGradient colors={[...sky]} locations={[...locations]} style={StyleSheet.absoluteFill} />
         {poster && <ArtBackdrop art={poster} />}
         <VideoBackdrop clip={video} />
+        {/* bigger over footage: they have to read against real grass and sky, not a flat gradient */}
+        {drift > 0 && <Bubbles count={drift} scale={1.5} />}
         <LinearGradient colors={['rgba(10,78,138,0.18)', 'rgba(10,78,138,0)']} locations={[0, 0.25]} style={StyleSheet.absoluteFill} />
       </View>
     );

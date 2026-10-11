@@ -9,9 +9,9 @@ const noise = (n: number, salt: number) => {
 };
 
 /** One soap bubble: clear body, iridescent rim, a bright specular top-left and a faint one bottom-right. */
-function Bubble({ seed, width, height }: { seed: number; width: number; height: number }) {
+function Bubble({ seed, width, height, scale }: { seed: number; width: number; height: number; scale: number }) {
   const p = useSharedValue(0);
-  const size = 22 + noise(seed, 1) * 46;
+  const size = (22 + noise(seed, 1) * 46) * scale;
   const x0 = width * (0.06 + noise(seed, 2) * 0.88);
   const drift = (noise(seed, 3) - 0.5) * 90;
   const dur = 14000 + noise(seed, 4) * 10000;
@@ -50,12 +50,12 @@ function Bubble({ seed, width, height }: { seed: number; width: number; height: 
 }
 
 /** Soap bubbles drifting up the screen, the Frutiger Aero signature. Cheap: a handful, transform-only. */
-export default function Bubbles({ count = 6 }: { count?: number }) {
+export default function Bubbles({ count = 6, scale = 1 }: { count?: number; scale?: number }) {
   const { width, height } = useWindowDimensions();
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {Array.from({ length: count }).map((_, i) => (
-        <Bubble key={i} seed={i + 1} width={width} height={height} />
+        <Bubble key={i} seed={i + 1} width={width} height={height} scale={scale} />
       ))}
     </View>
   );

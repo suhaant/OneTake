@@ -99,7 +99,7 @@ export default function SharePage() {
 
   return (
     <View style={{ flex: 1 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      <AeroBackground art="bubbles" />
+      <AeroBackground art="bubbles" drift={0} />
       <View style={[styles.header, { top: insets.top + 8 }]}>
         <Text style={styles.headerTitle}>Share</Text>
         <Pressable accessibilityLabel="Close" onPress={() => router.back()} style={styles.roundBtn}>
