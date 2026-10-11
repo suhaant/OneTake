@@ -14,6 +14,7 @@ behind each number is in `data/`; the scripts are in `tools/`.
 | Does it track what real listeners find engaging? | No evidence | r = +0.04 over a 22-minute story, 21 listeners |
 | Does it pick out the stronger moment within 30 seconds? | Slight edge | 60% against 50% chance, borderline |
 | Does it agree with the app's speaking score? | No, it runs against it | Structured formal takes rank 2 to 18; a rambling one ranks 56 |
+| Can it tell formal wording from plain wording? | No | 10 new texts: 1 of 8 placed correctly, and a filler-heavy casual text read "formal" (Test 4) |
 
 **Use it as** "predicted brain response" or "language vividness". **Do not use it as** an
 engagement grade.
@@ -61,8 +62,9 @@ Limits of this test:
 
 - One author wrote every text, and wrote the two styles to be as different as possible.
 - The engaging texts use shorter words (3.96 letters on average against 4.73). Across the 100
-  texts the raw score correlates with mean word length at r = −0.66, so part of the gap may be
-  word choice alone.
+  texts the raw score correlates with mean word length at r = −0.66. That link comes from the two
+  styles differing in both at once: inside the engaging texts alone it is r = −0.15, and inside the
+  flat texts alone r = +0.21. Word length itself does not drive the score (confirmed in Test 4).
 - It shows the score responds to a style that was defined as engaging. It does not show that
   audiences agree.
 
@@ -136,17 +138,50 @@ API. Only two still had a speaking score in the backend's store.
 
 - Pace does not explain it: re-timing each take to an even 150 words per minute left the ranks
   where they were (2 stayed 2, 16 stayed 16; the rambling take went from 56 to 50).
-- Word choice does: structured answers use longer, more abstract words, which is the style of the
+- Wording style does: structured answers make general statements, which is the style of the
   "flat" calibration texts. The rambling take used shorter words than even the vivid ones.
 - Removing the fillers from the rambling take raised its rank to 82, so fillers lower the score;
   the short, concrete words underneath are what the model responds to.
 
 So the raw score runs against the things the speaking score rewards (vocabulary and structure).
-For that reason the app no longer shows a brain number out of 100. It shows where the wording
-sits on a meter from plain and casual to formal: 100 minus the mean of the raw-score and vividness
-ranks, labelled plain below 34, balanced from 34 to 66, and formal from 67. The scale is reversed so
-that structured, formal answers sit at the high end. It still describes word style and is not a
-grade: the 89-scoring bike-lanes take reads 45 on it, just below the rambling take at 51.
+For that reason the app no longer shows a brain number out of 100.
+
+## Test 4: can the prediction place formal and plain wording?
+
+The app first showed a plain-to-formal meter built from the prediction: 100 minus the mean of the
+raw-score and vividness ranks, plain below 34, formal from 67. It was checked with ten new texts
+that are not in the calibration set, sent through the live API at an even 150 words per minute
+(`data/wording_test_results.jsonl`).
+
+| Text | Words of 7+ letters | Prediction-based meter | Counted meter (now in the app) |
+|---|---|---|---|
+| Formal essay: remote work | 76% | 55 balanced | 100 formal |
+| Formal essay: education | 75% | 25 plain | 100 formal |
+| Formal essay: climate | 83% | 44 balanced | 100 formal |
+| Formal essay: technology | 83% | 59 balanced | 100 formal |
+| Plain story: dog | 4% | 50 balanced | 17 plain |
+| Plain story: bike | 1% | 55 balanced | 12 plain |
+| Plain story: grandma | 3% | 50 balanced | 15 plain |
+| Plain story: rain | 7% | 26 plain | 23 plain |
+| Casual with fillers: phones | 1% | 73 formal | 1 plain |
+| Casual with fillers: food | 3% | 56 balanced | 1 plain |
+
+- The prediction-based meter placed 1 of the 8 formal and plain texts correctly, called a formal
+  essay plain, and called a casual, filler-heavy answer formal. It does not measure formality.
+- What the prediction separates is a vivid, concrete story from general statements (Test 1). That
+  is not the same axis as formal against plain.
+
+The meter in the app is therefore counted from the transcript, with no model involved
+(`wording()` in `backend/app/neuro.py`): the share of words with 7 or more letters, minus the share
+of filler words ("um", "like", "you know", "kind of" and similar), put on an S-curve where a
+difference of 0.17 reads 50. Plain is below 34, balanced 34 to 66, formal from 67.
+
+Checks on the counted meter: the ten texts above (10 of 10); six further texts written after the
+curve was fixed, from a structured spoken answer (96) to a rambling one (1), all placed as
+intended, with a deliberately mixed one at 65; calibration texts: 15 of 25 flat ones read formal
+and none plain, 17 of 25 engaging ones read plain and none formal. It is a word count. It says
+nothing about structure, delivery or quality, and "like" used as a real verb can be miscounted as
+a filler when it follows an unusual word.
 
 ## Not run
 
@@ -161,6 +196,7 @@ grade: the 89-scoring bike-lanes take reads 45 on it, just below the rambling ta
 |---|---|
 | `data/calibration_texts.py` | The 100 texts and how they were paced |
 | `data/calibration_results.jsonl` | Raw score and 180 region means for each text |
+| `data/wording_test_results.jsonl` | Test 4: raw score and ranks for the ten formal, plain and filler texts |
 | `data/calibration_report.json` | Paired comparisons and per-region statistics |
 | `data/reference.json` | Lookup table used for ranking (built by `tools/build_reference.py`) |
 | `data/song_validation_report.json` | Correlations with the human engagement curve, per signal and region |

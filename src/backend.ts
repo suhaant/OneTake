@@ -219,6 +219,8 @@ export type Neuro = {
     most_activated_regions: { region: string; role: string; activation: number }[];
     notes: string[];
   };
+  /** counted from the transcript, not predicted: 0 (plain, casual) to 100 (formal), with the shares behind it */
+  wording?: { formality: number; long_words: number; fillers: number } | null;
   peak?: { t: number; text: string };
   dip?: { t: number; text: string };
   /** predicted response per second; null where there was no prediction */

@@ -8,18 +8,11 @@ import { colors, fonts, gradients } from '../theme';
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
-/**
- * How formal the take's wording is, from plain and casual (0) to formal and abstract (100): the mean
- * of its two ranks against the reference texts, reversed. The predicted response is stronger for plain
- * words (neuro/ANALYSIS.md), so structured, formal answers sit toward the high end of this scale.
- * It describes word style. It is not a quality grade.
- */
-const formality = (k: NonNullable<Neuro['ranking']>) => 100 - Math.round((k.raw_score.percentile + k.vividness_score.percentile) / 2);
-
+/** Wording bands on the backend's 0 (plain, casual) to 100 (formal) scale. It describes word style. It is not a quality grade. */
 function wording(f: number): { title: string; body: string } {
-  if (f >= 67) return { title: 'Formal, abstract wording', body: 'Precise, structured language. Words like these get a quieter predicted response; one concrete example would make it land harder.' };
-  if (f >= 34) return { title: 'Balanced wording', body: 'A mix of formal and everyday words. The predicted response is about average.' };
-  return { title: 'Plain, casual wording', body: 'Short, everyday words like yours get the strongest predicted response. This says nothing about structure or delivery.' };
+  if (f >= 67) return { title: 'Formal wording', body: 'Longer, precise words and few fillers. It sounds prepared; one plain, concrete example would warm it up.' };
+  if (f >= 34) return { title: 'Balanced wording', body: 'A mix of formal and everyday words.' };
+  return { title: 'Plain, casual wording', body: 'Short, everyday words. Easy to follow; this says nothing about structure or delivery.' };
 }
 
 /** A track from plain to formal with a marker at the take's position. */
@@ -40,10 +33,10 @@ function WordingMeter({ position }: { position: number }) {
 }
 
 /**
- * The fMRI response TRIBE v2 predicts for an average listener hearing this take's words: where the
- * wording sits from plain to formal, the strongest moment, and the 3D brain. Display-only, with no
- * score, because the prediction tracks word style and not how good the speech was. Renders nothing
- * when the backend has no neuro API.
+ * The fMRI response TRIBE v2 predicts for an average listener hearing this take's words: the strongest
+ * moment and the 3D brain, under a meter of how formal the wording is. The meter is counted from the
+ * transcript by the backend, not predicted (neuro/ANALYSIS.md, Test 4). Display-only, with no score.
+ * Renders nothing when the backend has no neuro API.
  */
 export default function BrainResponse({ submissionId }: { submissionId?: string }) {
   const [neuro, setNeuro] = useState<Neuro>({ status: 'processing' });
@@ -59,9 +52,7 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
 
   if (!submissionId || neuro.status === 'disabled' || neuro.status === 'unavailable') return null;
 
-  const k = neuro.ranking;
-  const position = k ? formality(k) : 0;
-  const w = wording(position);
+  const position = neuro.wording?.formality;
 
   return (
     <View>
@@ -71,7 +62,7 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
         <Text style={styles.sectionSub}>predicted · not scored</Text>
       </View>
 
-      {neuro.status === 'processing' || !k ? (
+      {neuro.status === 'processing' ? (
         <View style={styles.waiting}>
           <ActivityIndicator color={colors.blue} />
           <Text style={styles.waitingText}>Running your words through a listener&apos;s brain…</Text>
@@ -79,13 +70,15 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
       ) : (
         <>
           {/* 1. where the wording sits */}
-          <View style={styles.verdict}>
-            <LinearGradient colors={[...gradients.glassDeep]} style={StyleSheet.absoluteFill} />
-            <Gloss height="48%" radius={22} />
-            <Text style={styles.verdictTitle}>{w.title}</Text>
-            <Text style={styles.verdictBody}>{w.body}</Text>
-            <WordingMeter position={position} />
-          </View>
+          {position == null ? null : (
+            <View style={styles.verdict}>
+              <LinearGradient colors={[...gradients.glassDeep]} style={StyleSheet.absoluteFill} />
+              <Gloss height="48%" radius={22} />
+              <Text style={styles.verdictTitle}>{wording(position).title}</Text>
+              <Text style={styles.verdictBody}>{wording(position).body}</Text>
+              <WordingMeter position={position} />
+            </View>
+          )}
 
           {/* 2. strongest moment */}
           {neuro.peak?.text ? (
@@ -103,8 +96,9 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
           <Text style={styles.caption}>Drag to turn. Brighter means a stronger predicted response.</Text>
 
           <Text style={styles.note}>
-            Predicted by Meta&apos;s TRIBE v2 for an average listener, from your words alone. The meter compares your wording with 50 reference texts,
-            from plain to formal. It is not a scan of anyone, not a measure of how engaged an audience was, and not part of your score.
+            The brain is predicted by Meta&apos;s TRIBE v2 for an average listener, from your words alone. It is not a scan of anyone and not a
+            measure of how engaged an audience was. The meter is counted from your words: more long words read formal, more fillers read casual.
+            Neither is part of your score.
           </Text>
         </>
       )}
