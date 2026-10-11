@@ -13,6 +13,7 @@ from .gemini import generate, get_gemini_client
 
 
 logger = logging.getLogger(__name__)
+INLINE_LIMIT_BYTES = 18 * 1024 * 1024
 
 
 class DeliveryEvaluation(BaseModel):
@@ -42,11 +43,11 @@ def normalize_video(video_path: str | Path, destination: str | Path) -> Path:
 
 
 def extract_wav(video_path: str | Path, destination: str | Path) -> Path:
-    """Extract a standard PCM WAV: macOS's built-in afconvert, or FFmpeg anywhere else."""
+    """Extract 16 kHz mono PCM WAV (what speech models consume; a third the upload of 44.1 kHz): macOS's built-in afconvert, or FFmpeg anywhere else."""
     destination = Path(destination)
     commands = [
-        ["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(video_path), str(destination)],
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path), "-vn", "-ac", "1", "-ar", "44100", "-f", "wav", str(destination)],
+        ["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1", str(video_path), str(destination)],
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000", "-f", "wav", str(destination)],
     ]
     for command in commands:
         try:
@@ -74,7 +75,13 @@ def evaluate_delivery(video_path: str | Path, daily_prompt: str) -> DeliveryEval
     client = get_gemini_client()
     video_path = Path(video_path)
     normalized = normalize_video(video_path, video_path.with_name(f"{video_path.stem}.eval.mp4"))
-    uploaded_video = _wait_until_active(client, client.files.upload(file=str(normalized)))
+    # Inline the clip when it is small (the re-encode is ~1-2 MB): no upload, no polling until ACTIVE.
+    # The Files API stays as the path for anything near the 20 MB inline limit.
+    size = normalized.stat().st_size
+    if size <= INLINE_LIMIT_BYTES:
+        video_part: object = types.Part.from_bytes(data=normalized.read_bytes(), mime_type="video/mp4" if normalized.suffix == ".mp4" else "video/quicktime" if normalized.suffix == ".mov" else "video/webm")
+    else:
+        video_part = _wait_until_active(client, client.files.upload(file=str(normalized)))
     prompt = f"""Evaluate only observable presentation behaviors in this short video for the prompt: {daily_prompt}
 Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1), not whole numbers. The anchors below describe 1, 3 and 5; place the take precisely between them based on the evidence. Two takes should rarely get the same rating, so avoid defaulting to .0 or .5.
 - eye_contact: how consistently the speaker's gaze is directed at the camera lens (the audience). 1 mostly looking away or reading, 3 roughly half the time, 5 steady gaze with only natural brief breaks.
@@ -83,7 +90,7 @@ Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1)
 The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3.0 and say only that it was out of view, without advising on camera setup.
 Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead. Keep each item to one sentence of at most 12 words, one or two items per list."""
     response = generate(
-        settings.video_model, [uploaded_video, prompt],
+        settings.video_model, [video_part, prompt],
         types.GenerateContentConfig(response_mime_type="application/json", response_schema=DeliveryEvaluation),
         what="delivery evaluation",
     )

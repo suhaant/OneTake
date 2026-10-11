@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 import logging
 from contextlib import asynccontextmanager
@@ -60,6 +61,10 @@ def health() -> dict[str, str]: return {"status": "ok"}
 def daily_prompt() -> dict[str, str]: return {"date": date.today().isoformat(), "prompt": DAILY_PROMPT, "rubric_version": "v2"}
 
 
+# Scoring stages that can overlap. Background tasks already run off the event loop; this adds one more worker per take.
+_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="score")
+
+
 def pace_band(wpm: float) -> str:
     """Comfortable conversational delivery sits around 130–170 words a minute."""
     if wpm < 110: return "slow"
@@ -73,6 +78,9 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
     try:
         recording_path = Path(recording)
         is_video = recording_path.suffix.lower() in {".mov", ".mp4", ".webm"}
+        # The delivery rubric needs only the video and the prompt, so it runs (re-encode included) while the
+        # audio is transcribed and the content rubric runs. Same models and prompts; the wall clock roughly halves.
+        delivery_job = _pool.submit(evaluate_delivery, recording_path, prompt) if is_video else None
         audio_path = extract_wav(recording_path, recording_path.with_suffix(".wav")) if is_video else recording_path
         transcript = transcribe(audio_path)
         neuro.start(submission_id, transcript)  # display-only, runs alongside the scoring below
@@ -92,8 +100,8 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
             "vocabulary": {"rating": semantic.vocabulary, "score": details["vocabulary"], "level": semantic.vocabulary_level, "strong_words": semantic.strong_words, "weak_words": semantic.weak_words},
             "structure": {"rating": semantic.sentence_structure, "score": details["sentence_structure"], "opening": semantic.opening, "support": semantic.support, "closing": semantic.closing},
         }
-        if is_video:
-            delivery = evaluate_delivery(recording_path, prompt)
+        if delivery_job is not None:
+            delivery = delivery_job.result()
             scores.update({"eye_contact": rubric_score(delivery.eye_contact), "posture": rubric_score(delivery.posture), "body_language": rubric_score(delivery.body_language)})
             breakdown["delivery"] = {"eye_contact": scores["eye_contact"], "posture": scores["posture"], "body_language": scores["body_language"]}
             # Content rewrites first (they move the score most), then the top delivery change.
