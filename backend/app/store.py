@@ -22,6 +22,7 @@ class Store(Protocol):
     def fail(self, submission_id: str, error: str, error_type: str) -> None: ...
     def progress(self, user_id: str, days: int, bucket: str) -> dict[str, Any]: ...
     def leaderboard(self, limit: int) -> list[dict[str, Any]]: ...
+    def reset_today(self, user_id: str, tz: str) -> int: ...
 
 
 class JsonSubmissionStore:
@@ -70,6 +71,16 @@ class JsonSubmissionStore:
             entry = best.setdefault(s["user_id"], {"user_id": s["user_id"], "best_score": 0.0, "takes": 0})
             entry["best_score"] = max(entry["best_score"], s["overall_score"]); entry["takes"] += 1
         return sorted(best.values(), key=lambda e: e["best_score"], reverse=True)[:limit]
+
+    def reset_today(self, user_id: str, tz: str) -> int:
+        """Deletes the user's takes from today (their calendar day) so they can record again. Demo use."""
+        from zoneinfo import ZoneInfo
+        today = datetime.now(ZoneInfo(tz)).date()
+        with self.lock:
+            data = self._load()
+            keep = {k: v for k, v in data.items() if not (v.get("user_id") == user_id and datetime.fromisoformat(v["created_at"]).astimezone(ZoneInfo(tz)).date() == today)}
+            self._save(keep)
+        return len(data) - len(keep)
 
 
 SCHEMA = """
@@ -181,6 +192,13 @@ class PostgresSubmissionStore:
         with self.pool.connection() as conn:
             rows = conn.execute("SELECT user_id, max(overall) AS best_score, round(avg(overall)::numeric, 2)::float AS average_score, count(*) AS takes FROM score_events WHERE user_id IS NOT NULL AND is_video GROUP BY user_id ORDER BY best_score DESC LIMIT %s", (limit,)).fetchall()
         return [{"user_id": u, "best_score": b, "average_score": a, "takes": t} for u, b, a, t in rows]
+
+    def reset_today(self, user_id: str, tz: str) -> int:
+        """Deletes the user's takes from today (their calendar day) so they can record again. Demo use."""
+        with self.pool.connection() as conn, conn.transaction():
+            events = conn.execute("DELETE FROM score_events WHERE user_id = %s AND (time AT TIME ZONE %s)::date = (now() AT TIME ZONE %s)::date", (user_id, tz, tz)).rowcount
+            conn.execute("DELETE FROM submissions WHERE user_id = %s AND (created_at AT TIME ZONE %s)::date = (now() AT TIME ZONE %s)::date", (user_id, tz, tz))
+        return events
 
 
 def make_store() -> Store:

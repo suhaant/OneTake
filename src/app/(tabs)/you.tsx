@@ -20,7 +20,7 @@ const personas: { id: Persona; label: string; sample: string }[] = [
 
 export default function YouTab() {
   const insets = useSafeAreaInsets();
-  const { me, setMe, saveName, doneToday, streak, notificationsOn, setNotificationsOn } = useApp();
+  const { me, setMe, saveName, doneToday, streak, notificationsOn, setNotificationsOn, resetDay } = useApp();
   const [name, setName] = useState(me?.name ?? '');
   const [phone, setPhone] = useState(me?.phone ?? '');
   const [busy, setBusy] = useState(false);
@@ -153,6 +153,23 @@ export default function YouTab() {
 
         {error && <Text style={styles.error}>{error}</Text>}
         {notice && <Text style={styles.notice}>{notice}</Text>}
+
+        {/* demo: forget today's take so the envelope can be opened again */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reset today's take"
+          disabled={busy || !doneToday}
+          onPress={() =>
+            run(async () => {
+              await resetDay();
+              setNotice("Today's take is forgotten. The envelope is sealed again.");
+            })
+          }
+          hitSlop={8}
+          style={{ alignSelf: 'center', opacity: doneToday ? 0.7 : 0.35 }}
+        >
+          <Text style={styles.demo}>{busy ? 'Resetting…' : 'Demo · reset my OneTake for today'}</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -176,5 +193,6 @@ const styles = StyleSheet.create({
   personaLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
   personaSample: { fontFamily: fonts.medium, fontSize: 13, color: colors.text2 },
   error: { fontFamily: fonts.semi, fontSize: 14, color: '#B3261E', backgroundColor: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 14, overflow: 'hidden' },
+  demo: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 0.3, ...skyText },
   notice: { fontFamily: fonts.semi, fontSize: 14, color: colors.greenText, backgroundColor: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 14, overflow: 'hidden' },
 });

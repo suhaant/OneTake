@@ -114,6 +114,14 @@ server.post('/users/:id/attempts', async (c) => {
   return c.json(stored ? await onAttemptCompleted(p.userId, stored.score) : { notified: 0 });
 });
 
+/** Demo helper: forgets today's take on this server. The app also calls the backend's DELETE /api/users/:id/today. */
+server.delete('/users/:id/attempts/today', async (c) => {
+  const p = await store.getProfile(c.req.param('id'));
+  if (!p) return c.json({ error: 'not_found' }, 404);
+  await store.resetToday(p.userId);
+  return c.json(await publicProfile(p));
+});
+
 // ---- leaderboard -----------------------------------------------------------
 
 /**

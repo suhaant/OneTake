@@ -50,6 +50,10 @@ export function memoryStore(): Store {
       list.unshift({ ...detail, time: new Date().toISOString(), prompt_id: prompt.id, prompt: prompt.text, score });
       attempts.set(userId, list);
     },
+    async resetToday(userId) {
+      const prompt = await dailyPrompt();
+      attempts.set(userId, (attempts.get(userId) ?? []).filter((r) => r.prompt_id !== prompt.id));
+    },
     async streak(userId, tz) {
       return streakFromDays((attempts.get(userId) ?? []).map((r) => dayIn(tz, new Date(r.time))), dayIn(tz));
     },

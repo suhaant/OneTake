@@ -193,6 +193,18 @@ export async function scoreTake(videoUri: string, prompt: string, userId?: strin
   throw new Error('Scoring is taking too long');
 }
 
+/** Demo helper: deletes today's takes for this user on the scoring backend. */
+export async function resetToday(userId: string): Promise<void> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/users/${encodeURIComponent(userId)}/today?tz=${encodeURIComponent(tz)}`, { method: 'DELETE' });
+  } catch {
+    throw new BackendUnreachable(`Cannot reach ${BASE}`);
+  }
+  if (!res.ok) throw new Error(`reset returned ${res.status}`);
+}
+
 /** Rank of one value against the neuro calibration texts (see /neuro/ANALYSIS.md). */
 export type NeuroRank = { value: number; percentile: number; beats_flat_texts: number; beats_vivid_texts: number; band?: string };
 

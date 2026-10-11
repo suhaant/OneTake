@@ -56,6 +56,8 @@ export const api = {
   registerPush: (userId: string, token: string) => call<Me>('POST', `/users/${userId}/push-token`, { token }),
   unregisterPush: (userId: string) => call<Me>('DELETE', `/users/${userId}/push-token`),
   friends: (userId: string) => call<Friend[]>('GET', `/users/${userId}/friends`),
+  /** Demo helper: forgets today's take so it can be recorded again. */
+  resetToday: (userId: string) => call<Me>('DELETE', `/users/${userId}/attempts/today`),
   reportAttempt: (userId: string, score: number, detail: unknown) => call<{ notified: number }>('POST', `/users/${userId}/attempts`, { score, detail }),
   createChallenge: (fromUserId: string, toPhone: string, toName: string) => call<ChallengeDraft>('POST', '/challenges', { fromUserId, toPhone, toName }),
   markChallengeSent: (id: string) => call<{ ok: true }>('POST', `/challenges/${id}/sent`),

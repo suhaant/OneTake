@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError, Me } from './api';
-import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, HistoryRow, scoreTake } from './backend';
+import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, HistoryRow, resetToday, scoreTake } from './backend';
 import { scheduleStreakReminder } from './notifications';
 import { mockResult, TakeResult, todaysPrompt } from './data/mock';
 
@@ -43,6 +43,8 @@ type State = {
   scoreGuess: number | null;
   setScoreGuess: (guess: number | null) => void;
   reset: () => void;
+  /** Demo helper: forgets today's take on both services and on this device, so the envelope opens again. */
+  resetDay: () => Promise<void>;
   /** server-side account; null until the user gives a name */
   me: Me | null;
   setMe: (me: Me) => void;
@@ -232,6 +234,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return running.current;
   }, [ensureAccount, refreshMe, refreshStats]);
 
+  const resetDay = useCallback(async () => {
+    const account = meRef.current;
+    if (account) {
+      await resetToday(account.userId);
+      await api.resetToday(account.userId).catch(() => {});
+    }
+    setResult(null);
+    setSample(false);
+    setVideoUri(null);
+    setScoreGuess(null);
+    setRank(null);
+    await Promise.all([refreshMe().catch(() => {}), refreshStats().catch(() => {})]);
+  }, [refreshMe, refreshStats, setVideoUri]);
+
   const acceptChallenge = useCallback(async (id: string) => {
     const userId = meRef.current?.userId ?? (await AsyncStorage.getItem(USER_KEY));
     if (userId) await api.acceptChallenge(id, userId).catch(() => {});
@@ -262,6 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setVideoUri(null);
         setScoreGuess(null);
       },
+      resetDay,
       me,
       setMe,
       saveName,
@@ -271,7 +288,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshStats,
       acceptChallenge,
     }),
-    [me, xp, rank, takers, pastTakes, history, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, scoreGuess, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
+    [me, xp, rank, takers, pastTakes, history, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, scoreGuess, resetDay, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

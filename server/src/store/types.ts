@@ -49,6 +49,8 @@ export interface Store {
   todaysAttempt(userId: string): Promise<{ score: number } | null>;
   /** Only the in-memory store writes here; with Tiger the scoring pipeline owns inserts. */
   recordAttempt(userId: string, score: number, detail: Row): Promise<void>;
+  /** Demo helper: forgets today's take. With Tiger the backend deletes its own rows; this clears anything local. */
+  resetToday(userId: string): Promise<void>;
   /** Consecutive days with a take, counted in the user's own time zone. */
   streak(userId: string, tz: string): Promise<number>;
   /** Everything stored about this user's takes, newest first. */

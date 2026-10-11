@@ -94,6 +94,10 @@ export function tigerStore(connectionString: string): Store {
     async recordAttempt() {
       // The backend inserts into score_events when a submission finishes scoring.
     },
+    async resetToday(userId) {
+      // The backend owns score_events; only today's notification log is ours to clear.
+      await q('delete from notification_log where user_id = $1 and day = current_date', [userId]);
+    },
     async streak(userId, tz) {
       const zone = safeTz(tz);
       const rows = await takes(

@@ -169,6 +169,17 @@ def progress(user_id: str, days: int = Query(default=30, ge=1, le=365), bucket: 
     return {"user_id": user_id, "days": days, "bucket": bucket, **store.progress(user_id, days, bucket)}
 
 
+@app.delete("/api/users/{user_id}/today")
+def reset_today(user_id: str, tz: str = Query(default="UTC")) -> dict:
+    """Demo helper: forgets today's take so the user can record it again. `tz` is the user's IANA zone."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(422, "tz must be an IANA time zone") from None
+    return {"user_id": user_id, "removed": store.reset_today(user_id, tz)}
+
+
 @app.get("/api/leaderboard")
 def leaderboard(scope: str = "global", limit: int = Query(default=20, ge=1, le=100)) -> dict:
     if scope not in {"global", "friends"}: raise HTTPException(422, "scope must be global or friends")
