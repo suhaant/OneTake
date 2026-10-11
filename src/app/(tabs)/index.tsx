@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Panda from '../../components/Panda';
@@ -16,7 +16,7 @@ import { useApp } from '../../store';
 
 function DoneNode({ label, score }: { label: string; score: number }) {
   return (
-    <View style={{ alignItems: 'center', gap: 10 }}>
+    <View style={{ alignItems: 'center', gap: 8 }}>
       <ChunkyButton tone="yellow" circle={74} depth={7} icon={<Check size={34} />} accessibilityLabel={`${label}, scored ${score}`} />
       <Chip text={`${label} · ${score}`} />
     </View>
@@ -79,15 +79,27 @@ export default function Home() {
       </View>
 
       {/* path: sits right under the banner so today's node and the panda land near the middle of the screen */}
-      <View style={[styles.path, { top: insets.top + 200 }]}>
-        {/* the two takes before today; empty slots stay empty for a new user */}
+      <View style={[styles.path, { top: insets.top + 190 }]}>
+        {/* the trail: a dotted road through the two earlier takes, today, and the locked days ahead */}
+        <Svg pointerEvents="none" width={400} height={480} style={{ position: 'absolute', left: 0, top: 0 }}>
+          <Path
+            d="M290 44 C 250 44, 206 58, 172 86 C 140 112, 124 140, 120 178 C 116 250, 142 326, 187 393 C 215 433, 262 408, 287 427"
+            fill="none"
+            stroke="rgba(255,255,255,0.85)"
+            strokeWidth={6}
+            strokeLinecap="round"
+            strokeDasharray="0.1 15"
+          />
+        </Svg>
+
+        {/* the two takes before today climb away up and to the right; empty slots stay empty for a new user */}
         {pastTakes.length > 1 && (
-          <View style={{ position: 'absolute', left: 236 }}>
+          <View style={{ position: 'absolute', left: 253, top: 7 }}>
             <DoneNode label={pastTakes[0].day} score={pastTakes[0].score} />
           </View>
         )}
         {pastTakes.length > 0 && (
-          <View style={{ position: 'absolute', left: 168, top: 56 }}>
+          <View style={{ position: 'absolute', left: 135, top: 49 }}>
             <DoneNode label={pastTakes[pastTakes.length - 1].day} score={pastTakes[pastTakes.length - 1].score} />
           </View>
         )}
@@ -132,15 +144,15 @@ export default function Home() {
         </View>
 
         {/* panda beside the node */}
-        <Pressable onPress={openEnvelope} style={{ position: 'absolute', left: 210, top: 110 }}>
+        <Pressable onPress={openEnvelope} style={{ position: 'absolute', left: 222, top: 142 }}>
           <Panda pose="idle" size={180} envelope={!done} />
         </Pressable>
 
         {/* locked */}
-        <View style={{ position: 'absolute', left: 150, top: 328 }}>
+        <View style={{ position: 'absolute', left: 150, top: 356 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Tomorrow, locked" />
         </View>
-        <View style={{ position: 'absolute', left: 250, top: 362 }}>
+        <View style={{ position: 'absolute', left: 250, top: 390 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Locked" />
         </View>
       </View>
