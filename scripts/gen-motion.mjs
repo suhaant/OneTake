@@ -17,8 +17,9 @@ const PROMPT =
 /** Per-scene motion notes appended to the base prompt. */
 const MOTION = {
   island:
-    ' The clouds drift steadily across the sky from left to right, clearly moving over the eight seconds, ' +
-    'the sun glow stays fixed, the grass ripples in long waves and the lake shimmers.',
+    ' The clouds travel steadily from the left edge of the frame all the way across to the right edge over the eight seconds, ' +
+    'new clouds entering from the left as others leave on the right, a continuous flow across the whole sky. ' +
+    'The sun glow stays fixed, the grass ripples in long waves and the lake shimmers.',
   meadow: ' The grass blades sway gently, dew drops glint, no splashes, no falling water.',
 };
 

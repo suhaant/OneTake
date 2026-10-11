@@ -40,7 +40,7 @@ export default function Home() {
   return (
     <View style={styles.root}>
       {/* the island still, animated by Veo: grass and water stirring in a light wind, clouds drifting */}
-      <AeroBackground video="island" poster="islandNear" drift={6} />
+      <AeroBackground video="island" poster="islandNear" drift={0} />
 
       {/* stat bar */}
       <View style={[styles.statBar, { top: insets.top + 8 }]}>
