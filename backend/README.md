@@ -19,13 +19,13 @@ The overall score is a weighted mean of five metrics, each 0–100:
 
 | Metric | Weight | Source |
 | --- | --- | --- |
-| `eye_contact` | 25% | Gemini video rubric (gaze toward the camera lens) |
-| `posture` | 15% | Gemini video rubric |
-| `body_language` | 15% | Gemini video rubric (hand gestures) |
+| `eye_contact` | 25% | MediaPipe: share of the take looking at the lens |
+| `posture` | 15% | MediaPipe: share of the take upright and steady |
+| `body_language` | 15% | MediaPipe: share of the take gesturing, minus time touching the face |
 | `fillers` | 20% | Software-counted um/uh, repeats, and restarts, plus Gemini-quoted contextual fillers; 100 − 8 × (per 100 words − 1) |
 | `language` | 25% | Mean of Gemini vocabulary and sentence-structure rubrics (sub-scores in `metric_details`) |
 
-Gemini's 1–5 ratings × 20 give 20–100. These are rubric ratings, not precision measurements. WAV submissions have no visual metrics, so the weights are renormalized over `fillers` and `language`. Takes under 30 words are scaled down proportionally. `GET /api/submissions/{id}` also returns a `take` object for the app: integer composite `score`, `breakdown`, today's `rank`/`percentile`, `delta` vs. the previous take, timestamped `moments`, `attention` curve, and the focus tip. CORS allows all origins by default; set `CORS_ORIGINS` to restrict it.
+Visual metrics are measured frame by frame with MediaPipe (the models download to `models/` on first run). Language ratings are Gemini rubric scores × 20. See SCORING.md for every formula. WAV submissions have no visual metrics, so the weights are renormalized over `fillers` and `language`. Takes under 30 words are scaled down proportionally. `GET /api/submissions/{id}` also returns a `take` object for the app: integer composite `score`, `breakdown`, today's `rank`/`percentile`, `delta` vs. the previous take, timestamped `moments`, `attention` curve, and the focus tip. CORS allows all origins by default; set `CORS_ORIGINS` to restrict it.
 
 ## Persistence (TigerData)
 

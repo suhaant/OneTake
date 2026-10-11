@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 from .config import settings
 from .gemini import get_gemini_client
-from .semantic import RatedSkill
 
 
 class Moment(BaseModel):
@@ -20,11 +19,17 @@ class Moment(BaseModel):
     good: bool
 
 
+class Observation(BaseModel):
+    evidence: str = Field(description="What is visible, with m:ss timestamps")
+    suggestion: str = Field(description="One actionable sentence")
+
+
 class DeliveryEvaluation(BaseModel):
     """Observable delivery ratings; Gemini should not infer emotions or identity."""
-    eye_contact: RatedSkill
-    posture: RatedSkill
-    body_language: RatedSkill
+    # Scores come from MediaPipe measurements (vision.py); Gemini only explains what it sees and suggests a fix.
+    eye_contact: Observation
+    posture: Observation
+    body_language: Observation
     moments: list[Moment] = Field(default_factory=list)
     attention: list[float] = Field(default_factory=list)
     strengths: list[str] = Field(min_length=1)
@@ -69,11 +74,11 @@ def evaluate_delivery(video_path: str | Path, daily_prompt: str) -> DeliveryEval
     client = get_gemini_client()
     uploaded_video = _wait_until_active(client, client.files.upload(file=str(video_path)))
     prompt = f"""You are a strict, evidence-based presentation coach. Evaluate only observable behavior in this ~30-second video; the speaker was answering: {daily_prompt}
-For each skill, first write the evidence (cite timestamps as m:ss), then rate 1–5 against the anchors, then give one actionable sentence.
-eye_contact: gaze on the camera lens. Estimate the share of the take spent looking at the lens and state it in the evidence. 1 under 30%; 2 30–50%; 3 50–70%; 4 70–85%; 5 over 85% with only brief natural breaks. Looking at the screen just beside the lens counts as partial.
-posture: 1 slouched, hunched, head dropping, or constantly shifting; 2 frequent slumping or tilting; 3 mostly upright with some slumping or shifting; 4 upright and steady with minor lapses; 5 upright, shoulders square and open, stable throughout.
-body_language: hand gestures and self-touch. 1 hands hidden or frozen, or frequent fidgeting/self-touching (face, hair, chin); 2 few gestures, some fidgeting; 3 occasional gestures loosely tied to the words; 4 regular gestures that match the words; 5 purposeful, varied gestures that reinforce key points, no fidgeting.
-Rate what is visible, not what was intended. Most casual takes are a 2 or 3; reserve 5 for polished delivery. If the relevant body area is not visible, rate 3 and say so in the evidence.
+For each skill, write the evidence (what you see, citing timestamps as m:ss) and one actionable suggestion. Do not give ratings; scores are measured separately.
+eye_contact: when the gaze leaves the camera lens and where it goes (up, down, sideways, reading).
+posture: slouching, head dropping or tipping back, tilting, leaning, or swaying.
+body_language: hand gestures (purposeful or not), hands out of frame, fidgeting, and touching the face or hair.
+If the relevant body area is not visible, say so in the evidence.
 moments: 2–5 key moments in chronological order, mixing good and bad, each tied to what is seen or heard at that timestamp.
 attention: 12 values from 0 to 1, one per equal slice of the video, estimating how engaging the delivery looks and sounds in that slice. This is a delivery-based estimate, not a measurement of a real audience.
 Do not infer personality, confidence, neurological state, identity, accent, or attractiveness.

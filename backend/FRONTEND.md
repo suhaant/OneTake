@@ -29,7 +29,7 @@ export type Take = {
   focusTitle: string; focusBody: string;
   also: { label: string; value: string }[];
   /** 6 subcategories; suggestion is null when score >= 80 (nothing to fix) */
-  subcategories: { key: string; label: string; score: number; suggestion: string | null }[];
+  subcategories: { key: string; label: string; score: number; measured: string | null; suggestion: string | null }[]; // measured: e.g. "On the lens 59% of the time"
   fillers: { total: number; per100Words: number; found: string[] }; // e.g. ["because", "and", "right?", "… (restart)"]
   transcript: string;
 };

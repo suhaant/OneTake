@@ -175,6 +175,7 @@ function showResults(t) {
     <div class="card"><h2>Breakdown</h2>${t.subcategories.map((s) => `
       <div class="row"><div class="row-top"><span>${esc(s.label)}</span><span>${s.score}</span></div>
         <div class="track"><div class="fill ${color(s.score)}" style="width:${s.score}%"></div></div>
+        ${s.measured ? `<div class="hint">${esc(s.measured)}</div>` : ""}
         ${s.suggestion ? `<div class="suggest">${esc(s.suggestion)}</div>` : ""}</div>`).join("")}
       <p class="hint">Composite weights: eye contact 25% · posture 15% · body language 15% · fillers 20% · language 25%</p></div>
     <div class="card"><h2>Filler words · ${t.fillers.total} found (${t.fillers.per100Words} per 100 words)</h2>

@@ -16,13 +16,15 @@ from pydantic import BaseModel
 
 from .audio import analyze_audio, find_disfluencies
 from .config import settings
-from .scoring import VISUAL_METRICS, category_scores, filler_score, overall_score, rubric_score
+from .scoring import (VISUAL_METRICS, body_language_score, category_scores, eye_contact_score, filler_score,
+                      overall_score, posture_score, rubric_score)
 from .prompts import prompt_for
 from .semantic import evaluate_speech
 from .store import BUCKETS, Store, make_store
 from .transcription import transcribe
 from .video import evaluate_delivery, extract_wav
 from .views import build_take
+from .vision import measure_delivery
 
 store: Store
 
@@ -57,7 +59,7 @@ def health() -> dict[str, str]: return {"status": "ok"}
 
 
 @app.get("/api/daily-prompt")
-def daily_prompt() -> dict: return {**prompt_for(), "takers": store.takers_today(), "rubric_version": "v4"}
+def daily_prompt() -> dict: return {**prompt_for(), "takers": store.takers_today(), "rubric_version": "v5"}
 
 
 def _process(submission_id: str, recording: str, prompt: str) -> None:
@@ -66,30 +68,39 @@ def _process(submission_id: str, recording: str, prompt: str) -> None:
         is_video = recording_path.suffix.lower() in {".mov", ".mp4", ".webm"}
         audio_path = extract_wav(recording_path, recording_path.with_suffix(".wav")) if is_video else recording_path
         # Video delivery evaluation is independent of the transcript, so it runs alongside transcription.
-        with ThreadPoolExecutor(max_workers=1) as pool:
+        with ThreadPoolExecutor(max_workers=2) as pool:
             delivery_job = pool.submit(evaluate_delivery, recording_path, prompt) if is_video else None
+            measure_job = pool.submit(measure_delivery, recording_path) if is_video else None
             transcript = transcribe(audio_path)
             audio = analyze_audio(audio_path, transcript)
             semantic = evaluate_speech(transcript.text, prompt)
             delivery = delivery_job.result() if delivery_job else None
+            measured = measure_job.result() if measure_job else None
         # Software counts um/uh, repeats, and restarts; Gemini only flags context-dependent fillers ("like", "right?").
         fillers = {**find_disfluencies(transcript.text), "contextual": [f.model_dump() for f in semantic.contextual_fillers]}
         fillers["total"] = sum(len(fillers[k]) for k in ("sounds", "repeats", "restarts", "contextual"))
         audio["fillers"], audio["fillers_per_100_words"] = fillers["total"], round(fillers["total"] / max(int(audio["word_count"]), 1) * 100, 2)
-        skills = {"vocabulary": semantic.vocabulary, "sentence_structure": semantic.sentence_structure}
-        if delivery: skills.update({"eye_contact": delivery.eye_contact, "posture": delivery.posture, "body_language": delivery.body_language})
-        details = {name: rubric_score(skill.rating) for name, skill in skills.items()}
-        details["fillers"] = filler_score(float(audio["fillers_per_100_words"]))
+        details = {"vocabulary": rubric_score(semantic.vocabulary.rating), "sentence_structure": rubric_score(semantic.sentence_structure.rating),
+                   "fillers": filler_score(float(audio["fillers_per_100_words"]))}
+        evidence = {"vocabulary": semantic.vocabulary.evidence, "sentence_structure": semantic.sentence_structure.evidence}
+        suggestions = {"vocabulary": semantic.vocabulary.suggestion, "sentence_structure": semantic.sentence_structure.suggestion, "fillers": semantic.filler_suggestion}
+        if measured and delivery:
+            details |= {"eye_contact": eye_contact_score(measured.eye_contact_ratio), "posture": posture_score(measured.upright_ratio),
+                        "body_language": body_language_score(measured.gesture_ratio, measured.face_touch_ratio)}
+            measured_facts = {"eye_contact": f"Measured: you looked at the lens {measured.eye_contact_ratio:.0%} of the time.",
+                              "posture": f"Measured: you were upright and steady {measured.upright_ratio:.0%} of the time.",
+                              "body_language": f"Measured: your hands were gesturing {measured.gesture_ratio:.0%} of the time and touching your face {measured.face_touch_ratio:.0%}."}
+            for name in VISUAL_METRICS:
+                observation = getattr(delivery, name)
+                evidence[name], suggestions[name] = f"{measured_facts[name]} {observation.evidence}", observation.suggestion
         scores = {"fillers": details["fillers"], "language": round((details["vocabulary"] + details["sentence_structure"]) / 2, 2)}
         scores.update({name: details[name] for name in VISUAL_METRICS if name in details})
-        evidence = {name: skill.evidence for name, skill in skills.items()}
-        suggestions = {name: skill.suggestion for name, skill in skills.items()} | {"fillers": semantic.filler_suggestion}
         feedback = {"strength": semantic.strengths[0], "improvement": semantic.weaknesses[0], "next_exercise": "Record another 30-second response with a clear opening, one supporting point, and conclusion."}
         moments, attention = [], []
         if delivery:
             moments, attention = [m.model_dump() for m in delivery.moments], delivery.attention
             feedback = {"strength": f"Content: {semantic.strengths[0]} Delivery: {delivery.strengths[0]}", "improvement": f"Content: {semantic.weaknesses[0]} Delivery: {delivery.improvements[0]}", "next_exercise": "Record another 30-second response with a clear opening, one supporting point, conclusion, and your face and upper body in frame.", "content_notes": {"strengths": semantic.strengths, "weaknesses": semantic.weaknesses}, "delivery_notes": {"strengths": delivery.strengths, "improvements": delivery.improvements}}
-        result = {"scoring_version": "v4-gemini-video" if is_video else "v4-audio-content", "overall_score": overall_score(scores, int(audio["word_count"])), "categories": category_scores(scores), "metrics": scores, "metric_details": details, "unavailable_metrics": [] if is_video else list(VISUAL_METRICS), "fillers": fillers, "evidence": evidence, "suggestions": suggestions, "moments": moments, "attention": attention, "transcript": transcript.to_dict(), "audio": audio, "feedback": feedback}
+        result = {"scoring_version": "v5-measured-video" if is_video else "v5-audio-content", "overall_score": overall_score(scores, int(audio["word_count"])), "categories": category_scores(scores), "metrics": scores, "metric_details": details, "unavailable_metrics": [] if is_video else list(VISUAL_METRICS), "measurements": measured.to_dict() if measured else None, "fillers": fillers, "evidence": evidence, "suggestions": suggestions, "moments": moments, "attention": attention, "transcript": transcript.to_dict(), "audio": audio, "feedback": feedback}
         store.complete(submission_id, result)
     except Exception as exc:
         logger.exception("Submission %s failed", submission_id)
