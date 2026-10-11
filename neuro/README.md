@@ -4,7 +4,7 @@ After a take is transcribed, its words and their timings go through Meta's
 [TRIBE v2](https://huggingface.co/facebook/tribev2) model, which predicts the fMRI response an
 average listener would have. The results screen then shows a "Brain response" section:
 
-- a **wording meter** from formal to plain and vivid, which is what the prediction tracks,
+- a **wording meter** from plain and casual to formal, which is what the prediction tracks (reversed: formal reads high),
 - the moment with the **strongest predicted response**, with the words spoken there,
 - a **3D brain** coloured with the prediction (drag to rotate, play it through the take).
 

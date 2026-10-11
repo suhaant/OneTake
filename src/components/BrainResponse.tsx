@@ -9,19 +9,20 @@ import { colors, fonts, gradients } from '../theme';
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
 /**
- * Where the take's wording sits between formal, abstract language (0) and plain, vivid language (100):
- * the mean of its two ranks against the reference texts. This is what the predicted response tracks
- * (neuro/ANALYSIS.md). It is not a quality grade: well-structured formal answers sit toward the left.
+ * How formal the take's wording is, from plain and casual (0) to formal and abstract (100): the mean
+ * of its two ranks against the reference texts, reversed. The predicted response is stronger for plain
+ * words (neuro/ANALYSIS.md), so structured, formal answers sit toward the high end of this scale.
+ * It describes word style. It is not a quality grade.
  */
-const wordingPosition = (k: NonNullable<Neuro['ranking']>) => Math.round((k.raw_score.percentile + k.vividness_score.percentile) / 2);
+const formality = (k: NonNullable<Neuro['ranking']>) => 100 - Math.round((k.raw_score.percentile + k.vividness_score.percentile) / 2);
 
-function wording(p: number): { title: string; body: string } {
-  if (p >= 67) return { title: 'Plain, vivid wording', body: 'Short, concrete words like yours get the strongest predicted response. This says nothing about structure or delivery.' };
-  if (p >= 34) return { title: 'Balanced wording', body: 'A mix of formal and everyday words. The predicted response is about average.' };
-  return { title: 'Formal, abstract wording', body: 'Words like these get a quieter predicted response. That suits a structured argument; one concrete example would make it land harder.' };
+function wording(f: number): { title: string; body: string } {
+  if (f >= 67) return { title: 'Formal, abstract wording', body: 'Precise, structured language. Words like these get a quieter predicted response; one concrete example would make it land harder.' };
+  if (f >= 34) return { title: 'Balanced wording', body: 'A mix of formal and everyday words. The predicted response is about average.' };
+  return { title: 'Plain, casual wording', body: 'Short, everyday words like yours get the strongest predicted response. This says nothing about structure or delivery.' };
 }
 
-/** A track from formal to vivid with a marker at the take's position. */
+/** A track from plain to formal with a marker at the take's position. */
 function WordingMeter({ position }: { position: number }) {
   const at = Math.min(Math.max(position, 3), 97);
   return (
@@ -31,8 +32,8 @@ function WordingMeter({ position }: { position: number }) {
       </View>
       <View style={[styles.marker, { left: `${at}%` }]} />
       <View style={styles.ends}>
+        <Text style={styles.end}>Plain and casual</Text>
         <Text style={styles.end}>Formal</Text>
-        <Text style={styles.end}>Plain and vivid</Text>
       </View>
     </View>
   );
@@ -40,7 +41,7 @@ function WordingMeter({ position }: { position: number }) {
 
 /**
  * The fMRI response TRIBE v2 predicts for an average listener hearing this take's words: where the
- * wording sits from formal to vivid, the strongest moment, and the 3D brain. Display-only, with no
+ * wording sits from plain to formal, the strongest moment, and the 3D brain. Display-only, with no
  * score, because the prediction tracks word style and not how good the speech was. Renders nothing
  * when the backend has no neuro API.
  */
@@ -59,7 +60,7 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
   if (!submissionId || neuro.status === 'disabled' || neuro.status === 'unavailable') return null;
 
   const k = neuro.ranking;
-  const position = k ? wordingPosition(k) : 0;
+  const position = k ? formality(k) : 0;
   const w = wording(position);
 
   return (
@@ -103,7 +104,7 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
 
           <Text style={styles.note}>
             Predicted by Meta&apos;s TRIBE v2 for an average listener, from your words alone. The meter compares your wording with 50 reference texts,
-            from formal to vivid. It is not a scan of anyone, not a measure of how engaged an audience was, and not part of your score.
+            from plain to formal. It is not a scan of anyone, not a measure of how engaged an audience was, and not part of your score.
           </Text>
         </>
       )}

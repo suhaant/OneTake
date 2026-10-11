@@ -143,8 +143,10 @@ API. Only two still had a speaking score in the backend's store.
 
 So the raw score runs against the things the speaking score rewards (vocabulary and structure).
 For that reason the app no longer shows a brain number out of 100. It shows where the wording
-sits on a meter from formal to plain and vivid: the mean of the raw-score and vividness ranks,
-labelled formal below 34, balanced from 34 to 66, and vivid from 67.
+sits on a meter from plain and casual to formal: 100 minus the mean of the raw-score and vividness
+ranks, labelled plain below 34, balanced from 34 to 66, and formal from 67. The scale is reversed so
+that structured, formal answers sit at the high end. It still describes word style and is not a
+grade: the 89-scoring bike-lanes take reads 45 on it, just below the rambling take at 51.
 
 ## Not run
 
