@@ -62,7 +62,7 @@ export default function Home() {
 
       {/* unit banner */}
       <View style={[styles.banner, { top: insets.top + 78 }]}>
-        <LinearGradient colors={['#2A8FE6', '#1E74D2', '#1A66C0']} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['#5BB4F4', '#3A97E8', '#2F86DC']} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
         <View style={{ flex: 1 }}>
           <Text style={styles.bannerTitle}>{done && todayScore != null ? `Today · ${todayScore}` : `Day ${dayNumber}`}</Text>
           <Text style={styles.bannerSub} numberOfLines={2}>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.9)',
-    backgroundColor: '#1E74D2',
+    backgroundColor: '#3A97E8',
     overflow: 'hidden',
     shadowColor: '#0A6DAE',
     shadowOpacity: 0.4,
