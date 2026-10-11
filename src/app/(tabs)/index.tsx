@@ -40,7 +40,7 @@ export default function Home() {
   return (
     <View style={styles.root}>
       {/* one shot: clouds up top, the grass island and water below the path */}
-      <AeroBackground video="island" />
+      <AeroBackground art="island" />
 
       {/* stat bar */}
       <View style={[styles.statBar, { top: insets.top + 8 }]}>

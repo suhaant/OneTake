@@ -7,6 +7,7 @@ import { sky } from '../theme';
 import Bubbles from './Bubbles';
 import { DriftingLeaf } from './Grass';
 import VideoBackdrop, { type Clip } from './VideoBackdrop';
+import ArtBackdrop, { type Art } from './ArtBackdrop';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -15,6 +16,8 @@ type Bubble = { x: number; y: number; r: number };
 type Props = {
   /** play one of the reference clips full-bleed instead of the painted sky */
   video?: Clip;
+  /** one of the Gemini-rendered stills full-bleed instead of the painted sky; soap bubbles still drift over it */
+  art?: Art;
   /** show the glossy grass hills at the bottom */
   hills?: boolean;
   /** show the stream winding between the hills (needs hills) */
@@ -54,10 +57,19 @@ const CLOUDS = [
   { y: 0.31, scale: 0.5, speed: 170000, start: 0.3, far: true },
 ];
 
-export default function AeroBackground({ video, hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
+export default function AeroBackground({ video, art, hills = true, water = true, bubbles = defaultBubbles, drift = 5, clouds = true, leaves = false, locations = [0, 0.3, 0.68, 1] }: Props) {
   const { width, height } = useWindowDimensions();
   const h = height;
   const w = width;
+
+  if (art) {
+    return (
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <ArtBackdrop art={art} />
+        {drift > 0 && <Bubbles count={Math.min(drift, 4)} />}
+      </View>
+    );
+  }
 
   if (video) {
     // The footage carries the scene; the gradient only shows until the first frame lands.
