@@ -7,6 +7,8 @@ import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import { GlassCard, SpeechBubble } from '../components/Glass';
 import Grass from '../components/Grass';
+import Bubbles from '../components/Bubbles';
+import EcoProgress from '../components/EcoProgress';
 import { Check, Sound } from '../components/Icons';
 import { useAnalysisMusic } from '../components/AnalysisMusic';
 import { colors, fonts } from '../theme';
@@ -136,7 +138,8 @@ export default function Thinking() {
   return (
     <View style={styles.root}>
       <AeroBackground hills={false} />
-      <Grass height={GRASS_HEIGHT} />
+      <Grass height={GRASS_HEIGHT} water />
+      <Bubbles />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: GRASS_HEIGHT * 0.55 + insets.bottom, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
         <View style={styles.pandaRow}>
           <Panda pose={talking && line?.mood ? POSE[line.mood] : 'thinking'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
@@ -150,6 +153,8 @@ export default function Thinking() {
         {/* 1. what is happening, step by step */}
         <GlassCard style={styles.card}>
           <Text style={styles.eyebrow}>Scoring your take</Text>
+          {/* fills toward the usual finish and holds near the end rather than lying about being done */}
+          <EcoProgress progress={Math.min(0.92, elapsed / 34)} />
           {stages.map((s, n) => {
             const done = n < stageIndex;
             const active = n === stageIndex;

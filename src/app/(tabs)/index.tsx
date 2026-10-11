@@ -8,6 +8,7 @@ import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Panda from '../../components/Panda';
 import PromptRoulette from '../../components/PromptRoulette';
+import Grass from '../../components/Grass';
 import { Chip, Gloss } from '../../components/Glass';
 import { Check, Envelope, Flame, Gem, Crown, List, Lock } from '../../components/Icons';
 import { colors, fonts, glassShadow, gradients } from '../../theme';
@@ -39,7 +40,8 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <AeroBackground />
+      <AeroBackground hills={false} />
+      <Grass height={230} leaves={false} />
 
       {/* stat bar */}
       <View style={[styles.statBar, { top: insets.top + 8 }]}>
