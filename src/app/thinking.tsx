@@ -2,19 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
 import AeroBackground from '../components/AeroBackground';
 import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
-import { GlassCard, Gloss, SpeechBubble } from '../components/Glass';
+import { GlassCard, SpeechBubble } from '../components/Glass';
+import Grass from '../components/Grass';
 import { Check, Sound } from '../components/Icons';
 import { useAnalysisMusic } from '../components/AnalysisMusic';
-import { colors, fonts, gradients } from '../theme';
+import { colors, fonts } from '../theme';
 import { useApp } from '../store';
 import { POSE, almostDone, dontLine, tipLine, waitingIntro } from '../coachLines';
 import { firstName, useCoach } from '../voice';
 
+/** The meadow at the foot of the screen; the cards stop above its tallest blades. */
+const GRASS_HEIGHT = 300;
 /** Once the scorer is this far along he says "almost done". */
 const ALMOST_AT = 15;
 
@@ -42,50 +43,12 @@ const tips: { tag: string; title: string; body: string }[] = [
   { tag: 'Closing', title: 'Land the ending', body: 'Finish on your point, not on "yeah, so that’s it". Then stop talking.' },
 ];
 
-const GUESS_MIN = 40;
-const GUESS_MAX = 100;
-
-/** A glass slider: drag or tap anywhere on the track. Built on the responder system so it works on web too. */
-function GuessSlider({ value, onChange, locked }: { value: number; onChange: (v: number) => void; locked: boolean }) {
-  const [w, setW] = useState(0);
-  const pct = (value - GUESS_MIN) / (GUESS_MAX - GUESS_MIN);
-  const set = (x: number) => {
-    if (!w || locked) return;
-    const p = Math.min(1, Math.max(0, x / w));
-    onChange(Math.round(GUESS_MIN + p * (GUESS_MAX - GUESS_MIN)));
-  };
-  return (
-    <View
-      style={styles.sliderHit}
-      onLayout={(e) => setW(e.nativeEvent.layout.width)}
-      onStartShouldSetResponder={() => !locked}
-      onMoveShouldSetResponder={() => !locked}
-      onResponderGrant={(e) => set(e.nativeEvent.locationX)}
-      onResponderMove={(e) => set(e.nativeEvent.locationX)}
-      accessibilityRole="adjustable"
-      accessibilityValue={{ min: GUESS_MIN, max: GUESS_MAX, now: value }}
-    >
-      <View style={styles.sliderTrack}>
-        <LinearGradient colors={['#E4F2FA', '#FFFFFF']} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={[...gradients.aqua]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.sliderFill, { width: `${pct * 100}%` }]} />
-      </View>
-      <View pointerEvents="none" style={[styles.thumb, { left: `${pct * 100}%` }]}>
-        <LinearGradient colors={[...gradients.chrome]} style={StyleSheet.absoluteFill} />
-        <Gloss height="50%" radius={17} />
-        <Text style={styles.thumbText}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
 export default function Thinking() {
   const insets = useSafeAreaInsets();
-  const { analyze, scoreGuess, setScoreGuess, me } = useApp();
+  const { analyze, me } = useApp();
   const { coach, talking, line, said } = useCoach();
   const [failed, setFailed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [guess, setGuess] = useState(scoreGuess ?? 72);
-  const [locked, setLocked] = useState(scoreGuess != null);
   const [tip, setTip] = useState(() => Math.floor(Math.random() * tips.length));
   const [fade] = useState(() => new Animated.Value(1));
   const elapsedRef = useRef(0);
@@ -154,16 +117,6 @@ export default function Thinking() {
   const stageIndex = stages.reduce((idx, s, n) => (elapsed >= s.at ? n : idx), 0);
   const current = tips[tip];
 
-  const lock = () => {
-    setLocked(true);
-    setScoreGuess(guess);
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    } catch {
-      // web
-    }
-  };
-
   if (failed) {
     return (
       <View style={styles.root}>
@@ -182,8 +135,9 @@ export default function Thinking() {
 
   return (
     <View style={styles.root}>
-      <AeroBackground />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 30, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
+      <AeroBackground hills={false} />
+      <Grass height={GRASS_HEIGHT} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: GRASS_HEIGHT * 0.55 + insets.bottom, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
         <View style={styles.pandaRow}>
           <Panda pose={talking && line?.mood ? POSE[line.mood] : 'thinking'} size={104} mouth={coach.mouth} beat={coach.beat} gesture={talking ? line?.gesture : undefined} />
           <SpeechBubble text={talking && said ? said : stages[stageIndex].doing} />
@@ -211,16 +165,7 @@ export default function Thinking() {
           <Text style={styles.stageHint}>{elapsed > 40 ? 'Taking a little longer than usual. Hang on.' : 'Usually under half a minute.'}</Text>
         </GlassCard>
 
-        {/* 2. commit to a number before the reveal */}
-        <GlassCard tint="aqua" style={styles.card}>
-          <Text style={styles.eyebrow}>Call your score</Text>
-          <Text style={styles.guessTitle}>{locked ? `Locked in at ${guess}.` : 'How did that feel? Make a call.'}</Text>
-          <Text style={styles.guessSub}>{locked ? 'We will tell you how close you were.' : 'Guess before you see it. People who do read their own delivery better over time.'}</Text>
-          <GuessSlider value={guess} onChange={setGuess} locked={locked} />
-          {!locked && <ChunkyButton tone="green" label="Lock it in" depth={4} onPress={lock} />}
-        </GlassCard>
-
-        {/* 3. one thing to take into tomorrow */}
+        {/* 2. one thing to take into tomorrow */}
         <GlassCard style={styles.card}>
           <Animated.View style={{ opacity: fade }}>
             <View style={styles.tipHeader}>
@@ -267,13 +212,6 @@ const styles = StyleSheet.create({
   stageActive: { backgroundColor: colors.aquaDeep, borderColor: colors.blueDeep },
   stageText: { flex: 1, fontFamily: fonts.semi, fontSize: 15, color: colors.navy },
   stageHint: { marginTop: 4, fontFamily: fonts.medium, fontSize: 12, color: colors.muted },
-  guessTitle: { fontFamily: fonts.bold, fontSize: 19, lineHeight: 24, color: colors.navy },
-  guessSub: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.text2 },
-  sliderHit: { height: 56, justifyContent: 'center', marginTop: 6, marginBottom: 4, marginHorizontal: 17 },
-  sliderTrack: { height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#BFDDEC', overflow: 'hidden' },
-  sliderFill: { height: '100%', borderRadius: 7 },
-  thumb: { position: 'absolute', top: 11, width: 34, height: 34, marginLeft: -17, borderRadius: 17, borderWidth: 1, borderColor: '#fff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  thumbText: { fontFamily: fonts.bold, fontSize: 12, color: colors.navy },
   tipHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   tipTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, backgroundColor: colors.greenLight },
   tipTagText: { fontFamily: fonts.bold, fontSize: 11, color: colors.greenText, letterSpacing: 0.4 },
