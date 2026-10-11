@@ -192,7 +192,9 @@ export default function Prompt() {
       <View style={[styles.shutterWrap, { paddingBottom: insets.bottom + 16 }]}>
         {phase === 'idle' ? (
           <>
-            <ChunkyButton tone="green" label="Start" depth={6} disabled={!granted || !ready} onPress={begin} style={{ alignSelf: 'stretch', marginHorizontal: 12 }} />
+            <View style={styles.startPlate}>
+              <ChunkyButton tone="blue" label="Start" depth={7} disabled={!granted || !ready} onPress={begin} style={{ alignSelf: 'stretch' }} />
+            </View>
             <Text style={styles.shutterHint}>He counts you in · one take, no retakes</Text>
           </>
         ) : recording ? (
@@ -284,13 +286,15 @@ const styles = StyleSheet.create({
     textShadowRadius: 18,
   },
   finderStatus: { position: 'absolute', left: 16, top: 14, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1, color: '#fff', opacity: 0.9 },
-  timer: { position: 'absolute', right: 14, top: 12, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  timerText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  timer: { position: 'absolute', right: 14, top: 12, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)' },
+  timerText: { fontFamily: fonts.bold, fontSize: 19, color: '#fff', fontVariant: ['tabular-nums'], letterSpacing: 0.5 },
   finderHint: { position: 'absolute', left: 0, right: 0, bottom: 14, textAlign: 'center', fontFamily: fonts.semi, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   permText: { fontFamily: fonts.semi, fontSize: 15, color: '#fff', textAlign: 'center', lineHeight: 21 },
   permBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 999, backgroundColor: '#fff' },
   permBtnText: { fontFamily: fonts.bold, color: colors.navy },
   shutterWrap: { paddingTop: 12, alignItems: 'center', gap: 8 },
+  // white plate under the Start button so it stands off the green meadow
+  startPlate: { alignSelf: 'stretch', marginHorizontal: 12, padding: 5, paddingBottom: 2, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.92)', shadowColor: '#0A6DAE', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
   shutter: { width: 78, height: 78, alignItems: 'center', justifyContent: 'center' },
   shutterDot: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E8261E' },
   shutterStop: { width: 30, height: 30, borderRadius: 7 },
