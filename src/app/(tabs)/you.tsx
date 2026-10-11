@@ -155,21 +155,22 @@ export default function YouTab() {
         {notice && <Text style={styles.notice}>{notice}</Text>}
 
         {/* demo: forget today's take so the envelope can be opened again */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Reset today's take"
-          disabled={busy || !doneToday}
-          onPress={() =>
-            run(async () => {
-              await resetDay();
-              setNotice("Today's take is forgotten. The envelope is sealed again.");
-            })
-          }
-          hitSlop={8}
-          style={{ alignSelf: 'center', opacity: doneToday ? 0.7 : 0.35 }}
-        >
-          <Text style={styles.demo}>{busy ? 'Resetting…' : 'Demo · reset my OneTake for today'}</Text>
-        </Pressable>
+        <GlassCard style={styles.card}>
+          <Text style={styles.label}>Demo</Text>
+          <ChunkyButton
+            tone="white"
+            label={busy ? 'Resetting…' : 'Reset my OneTake for today'}
+            depth={4}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                await resetDay();
+                setNotice("Today's take is forgotten. The envelope is sealed again.");
+              })
+            }
+          />
+          <Text style={styles.hint}>Deletes today&apos;s take on both servers so the envelope opens again. Past days and the streak stay.</Text>
+        </GlassCard>
       </ScrollView>
     </View>
   );
@@ -193,6 +194,5 @@ const styles = StyleSheet.create({
   personaLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
   personaSample: { fontFamily: fonts.medium, fontSize: 13, color: colors.text2 },
   error: { fontFamily: fonts.semi, fontSize: 14, color: '#B3261E', backgroundColor: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 14, overflow: 'hidden' },
-  demo: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 0.3, ...skyText },
   notice: { fontFamily: fonts.semi, fontSize: 14, color: colors.greenText, backgroundColor: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 14, overflow: 'hidden' },
 });
