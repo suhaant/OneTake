@@ -97,8 +97,8 @@ export default function YouTab() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AeroBackground hills={false} />
-      <Grass height={170} leaves={false} />
+      <AeroBackground video="sky" />
+      <Grass height={230} leaves={false} />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>You</Text>
         <View style={styles.pandaRow}>

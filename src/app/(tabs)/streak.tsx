@@ -85,7 +85,7 @@ export default function ProgressTab() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AeroBackground hills={false} />
+      <AeroBackground video="river" />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Progress</Text>
