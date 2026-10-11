@@ -37,6 +37,9 @@ type State = {
   promptText: string;
   /** scores the recorded take; rejects if the backend could not score it */
   analyze: () => Promise<void>;
+  /** the score the user predicted for themselves while waiting; null if they did not guess */
+  scoreGuess: number | null;
+  setScoreGuess: (guess: number | null) => void;
   reset: () => void;
   /** server-side account; null until the user gives a name */
   me: Me | null;
@@ -60,6 +63,7 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [result, setResult] = useState<TakeResult | null>(null);
+  const [scoreGuess, setScoreGuess] = useState<number | null>(null);
   const [sample, setSample] = useState(false);
   const [videoUri, setVideoUriState] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
@@ -245,10 +249,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setVideoUri,
       promptText,
       analyze,
+      scoreGuess,
+      setScoreGuess,
       reset: () => {
         setResult(null);
         setSample(false);
         setVideoUri(null);
+        setScoreGuess(null);
       },
       me,
       setMe,
@@ -259,7 +266,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshStats,
       acceptChallenge,
     }),
-    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
+    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, scoreGuess, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

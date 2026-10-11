@@ -1,18 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import AeroBackground from '../components/AeroBackground';
 import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
-import { GlassCard, SpeechBubble } from '../components/Glass';
-import { colors, fonts } from '../theme';
+import { GlassCard, Gloss, SpeechBubble } from '../components/Glass';
+import { Check } from '../components/Icons';
+import { colors, fonts, gradients } from '../theme';
 import { useApp } from '../store';
 
-const lines = ['Give me a sec…', 'Listening back to your voice…', 'Checking eye contact…', 'Reading the structure…', 'Almost there…'];
+const TIP_SECONDS = 6;
 
-/** Scoring usually lands in 15–30 s; the countdown starts here and holds at 0:00 if it runs over. */
-const COUNTDOWN_SECONDS = 45;
-const TIP_SECONDS = 5;
+/**
+ * What the scorer is doing, in order, with the second each step usually starts. Scoring lands in
+ * 15–30 s; the last stage holds until the result arrives, so there is no countdown to run out.
+ */
+const stages = [
+  { at: 0, label: 'Transcribing your words', doing: 'Give me a sec…' },
+  { at: 7, label: 'Listening for pace and fillers', doing: 'Listening back to your voice…' },
+  { at: 15, label: 'Watching eye contact and posture', doing: 'Checking eye contact…' },
+  { at: 24, label: 'Scoring the structure', doing: 'Reading the structure…' },
+];
 
 /** One tip per thing the scorer measures, so the wait teaches what the score will say. */
 const tips: { tag: string; title: string; body: string }[] = [
@@ -27,30 +38,66 @@ const tips: { tag: string; title: string; body: string }[] = [
   { tag: 'Closing', title: 'Land the ending', body: 'Finish on your point, not on "yeah, so that’s it". Then stop talking.' },
 ];
 
+const GUESS_MIN = 40;
+const GUESS_MAX = 100;
+
+/** A glass slider: drag or tap anywhere on the track. Built on the responder system so it works on web too. */
+function GuessSlider({ value, onChange, locked }: { value: number; onChange: (v: number) => void; locked: boolean }) {
+  const [w, setW] = useState(0);
+  const pct = (value - GUESS_MIN) / (GUESS_MAX - GUESS_MIN);
+  const set = (x: number) => {
+    if (!w || locked) return;
+    const p = Math.min(1, Math.max(0, x / w));
+    onChange(Math.round(GUESS_MIN + p * (GUESS_MAX - GUESS_MIN)));
+  };
+  return (
+    <View
+      style={styles.sliderHit}
+      onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      onStartShouldSetResponder={() => !locked}
+      onMoveShouldSetResponder={() => !locked}
+      onResponderGrant={(e) => set(e.nativeEvent.locationX)}
+      onResponderMove={(e) => set(e.nativeEvent.locationX)}
+      accessibilityRole="adjustable"
+      accessibilityValue={{ min: GUESS_MIN, max: GUESS_MAX, now: value }}
+    >
+      <View style={styles.sliderTrack}>
+        <LinearGradient colors={['#E4F2FA', '#FFFFFF']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[...gradients.aqua]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.sliderFill, { width: `${pct * 100}%` }]} />
+      </View>
+      <View pointerEvents="none" style={[styles.thumb, { left: `${pct * 100}%` }]}>
+        <LinearGradient colors={[...gradients.chrome]} style={StyleSheet.absoluteFill} />
+        <Gloss height="50%" radius={17} />
+        <Text style={styles.thumbText}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function Thinking() {
-  const { analyze } = useApp();
-  const [i, setI] = useState(0);
+  const insets = useSafeAreaInsets();
+  const { analyze, scoreGuess, setScoreGuess } = useApp();
   const [failed, setFailed] = useState(false);
-  const [left, setLeft] = useState(COUNTDOWN_SECONDS);
+  const [elapsed, setElapsed] = useState(0);
+  const [guess, setGuess] = useState(scoreGuess ?? 72);
+  const [locked, setLocked] = useState(scoreGuess != null);
   const [tip, setTip] = useState(() => Math.floor(Math.random() * tips.length));
   const [fade] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     let active = true;
-    const tick = setInterval(() => setI((n) => Math.min(n + 1, lines.length - 1)), 1100);
     analyze()
       .then(() => active && router.replace('/results'))
       .catch(() => active && setFailed(true));
     return () => {
       active = false;
-      clearInterval(tick);
     };
   }, [analyze]);
 
-  // Countdown to the expected result; holds at 0:00 while scoring runs long, stops on failure.
+  // Elapsed seconds drive the stage list; nothing counts down, so running long never looks broken.
   useEffect(() => {
     if (failed) return;
-    const id = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [failed]);
 
@@ -66,79 +113,125 @@ export default function Thinking() {
     return () => clearInterval(id);
   }, [failed, fade]);
 
-  const clock = `${Math.floor(left / 60)}:${(left % 60).toString().padStart(2, '0')}`;
-  const hint = left > 0 ? 'Your score is on its way' : 'Finishing up, hang on…';
+  const stageIndex = stages.reduce((idx, s, n) => (elapsed >= s.at ? n : idx), 0);
   const current = tips[tip];
+
+  const lock = () => {
+    setLocked(true);
+    setScoreGuess(guess);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {
+      // web
+    }
+  };
+
+  if (failed) {
+    return (
+      <View style={styles.root}>
+        <AeroBackground />
+        <View style={styles.center}>
+          <View style={styles.pandaRow}>
+            <View style={{ width: 84 }} />
+            <SpeechBubble text="I couldn't score that take. Your streak is safe; try recording again." />
+          </View>
+          <Panda pose="console" size={230} />
+          <ChunkyButton tone="green" label="Record again" depth={4} style={{ marginTop: 24, alignSelf: 'stretch', marginHorizontal: 32 }} onPress={() => router.replace('/prompt')} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
       <AeroBackground />
-      <View style={styles.center}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 24, marginBottom: 16, width: '100%' }}>
-          <View style={{ width: 84 }} />
-          <SpeechBubble text={failed ? "I couldn't score that take. Your streak is safe; try recording again." : lines[i]} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 30, paddingHorizontal: 20, gap: 14 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.pandaRow}>
+          <Panda pose="thinking" headOnly size={84} />
+          <SpeechBubble text={stages[stageIndex].doing} />
         </View>
-        <Panda pose={failed ? 'console' : 'thinking'} size={failed ? 230 : 190} />
-        {failed ? (
-          <ChunkyButton tone="green" label="Record again" depth={4} style={{ marginTop: 24, alignSelf: 'stretch', marginHorizontal: 32 }} onPress={() => router.replace('/prompt')} />
-        ) : (
-          <>
-            <Text style={styles.label}>Analyzing your take</Text>
-            <Text style={styles.sub}>Voice · Body · Content</Text>
-            <View style={styles.timer}>
-              <View style={[styles.dot, left === 0 && styles.dotLate]} />
-              <Text style={styles.timerText}>{clock}</Text>
-            </View>
-            <Text style={styles.hint}>{hint}</Text>
 
-            <GlassCard style={styles.tipCard}>
-              <Animated.View style={{ opacity: fade }}>
-                <View style={styles.tipHeader}>
-                  <Text style={styles.tipEyebrow}>While you wait</Text>
-                  <View style={styles.tipTag}>
-                    <Text style={styles.tipTagText}>{current.tag}</Text>
-                  </View>
+        {/* 1. what is happening, step by step */}
+        <GlassCard style={styles.card}>
+          <Text style={styles.eyebrow}>Scoring your take</Text>
+          {stages.map((s, n) => {
+            const done = n < stageIndex;
+            const active = n === stageIndex;
+            return (
+              <View key={s.label} style={styles.stage}>
+                <View style={[styles.stageDot, done && styles.stageDone, active && styles.stageActive]}>
+                  {done ? <Check size={14} color="#fff" /> : active ? <Pulse /> : null}
                 </View>
-                <Text style={styles.tipTitle}>{current.title}</Text>
-                <Text style={styles.tipBody}>{current.body}</Text>
-              </Animated.View>
-              <View style={styles.dots}>
-                {tips.map((_, n) => (
-                  <View key={n} style={[styles.tipDot, n === tip && styles.tipDotOn]} />
-                ))}
+                <Text style={[styles.stageText, done && { color: colors.muted }, active && { fontFamily: fonts.bold }]}>{s.label}</Text>
               </View>
-            </GlassCard>
-          </>
-        )}
-      </View>
+            );
+          })}
+          <Text style={styles.stageHint}>{elapsed > 40 ? 'Taking a little longer than usual. Hang on.' : 'Usually under half a minute.'}</Text>
+        </GlassCard>
+
+        {/* 2. commit to a number before the reveal */}
+        <GlassCard tint="aqua" style={styles.card}>
+          <Text style={styles.eyebrow}>Call your score</Text>
+          <Text style={styles.guessTitle}>{locked ? `Locked in at ${guess}.` : 'How did that feel? Make a call.'}</Text>
+          <Text style={styles.guessSub}>{locked ? 'We will tell you how close you were.' : 'Guess before you see it. People who do read their own delivery better over time.'}</Text>
+          <GuessSlider value={guess} onChange={setGuess} locked={locked} />
+          {!locked && <ChunkyButton tone="green" label="Lock it in" depth={4} onPress={lock} />}
+        </GlassCard>
+
+        {/* 3. one thing to take into tomorrow */}
+        <GlassCard style={styles.card}>
+          <Animated.View style={{ opacity: fade }}>
+            <View style={styles.tipHeader}>
+              <Text style={styles.eyebrow}>While you wait</Text>
+              <View style={styles.tipTag}>
+                <Text style={styles.tipTagText}>{current.tag}</Text>
+              </View>
+            </View>
+            <Text style={styles.tipTitle}>{current.title}</Text>
+            <Text style={styles.tipBody}>{current.body}</Text>
+          </Animated.View>
+          <View style={styles.dots}>
+            {tips.map((_, n) => (
+              <View key={n} style={[styles.tipDot, n === tip && styles.tipDotOn]} />
+            ))}
+          </View>
+        </GlassCard>
+      </ScrollView>
     </View>
   );
+}
+
+/** Breathing dot for the stage in progress. */
+function Pulse() {
+  const [a] = useState(() => new Animated.Value(0.4));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([Animated.timing(a, { toValue: 1, duration: 600, useNativeDriver: true }), Animated.timing(a, { toValue: 0.4, duration: 600, useNativeDriver: true })]));
+    loop.start();
+    return () => loop.stop();
+  }, [a]);
+  return <Animated.View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff', opacity: a }} />;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
-  label: { marginTop: 16, fontFamily: fonts.bold, fontSize: 22, color: '#fff', textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
-  sub: { fontFamily: fonts.semi, fontSize: 13, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.navy, opacity: 0.8 },
-  timer: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
-  dotLate: { backgroundColor: colors.yellow },
-  timerText: { fontFamily: fonts.bold, fontSize: 18, color: colors.navy, fontVariant: ['tabular-nums'] },
-  hint: { marginTop: 4, fontFamily: fonts.medium, fontSize: 13, color: colors.navy, opacity: 0.75 },
-  tipCard: { marginTop: 18, alignSelf: 'stretch', paddingHorizontal: 18, paddingVertical: 16, minHeight: 150 },
+  pandaRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  card: { padding: 16, gap: 10 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.blue },
+  stage: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  stageDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#BFDDEC', alignItems: 'center', justifyContent: 'center' },
+  stageDone: { backgroundColor: colors.leaf, borderColor: colors.greenDark },
+  stageActive: { backgroundColor: colors.aquaDeep, borderColor: colors.blueDeep },
+  stageText: { flex: 1, fontFamily: fonts.semi, fontSize: 15, color: colors.navy },
+  stageHint: { marginTop: 4, fontFamily: fonts.medium, fontSize: 12, color: colors.muted },
+  guessTitle: { fontFamily: fonts.bold, fontSize: 19, lineHeight: 24, color: colors.navy },
+  guessSub: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.text2 },
+  sliderHit: { height: 56, justifyContent: 'center', marginTop: 6, marginBottom: 4, marginHorizontal: 17 },
+  sliderTrack: { height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#BFDDEC', overflow: 'hidden' },
+  sliderFill: { height: '100%', borderRadius: 7 },
+  thumb: { position: 'absolute', top: 11, width: 34, height: 34, marginLeft: -17, borderRadius: 17, borderWidth: 1, borderColor: '#fff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  thumbText: { fontFamily: fonts.bold, fontSize: 12, color: colors.navy },
   tipHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  tipEyebrow: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted },
   tipTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, backgroundColor: colors.greenLight },
   tipTagText: { fontFamily: fonts.bold, fontSize: 11, color: colors.greenText, letterSpacing: 0.4 },
   tipTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 23, color: colors.navy },

@@ -12,8 +12,8 @@ VocabularyLevel = Literal["basic", "everyday", "varied", "precise"]
 
 
 class SemanticEvaluation(BaseModel):
-    vocabulary: int = Field(ge=1, le=5)
-    sentence_structure: int = Field(ge=1, le=5)
+    vocabulary: float = Field(ge=1, le=5)
+    sentence_structure: float = Field(ge=1, le=5)
     contextual_fillers: int = Field(ge=0)
     strengths: list[str] = Field(min_length=1)
     weaknesses: list[str] = Field(min_length=1)
@@ -31,7 +31,7 @@ class SemanticEvaluation(BaseModel):
 def evaluate_speech(transcript: str, daily_prompt: str) -> SemanticEvaluation:
     prompt = f"""You are an evidence-based public-speaking evaluator. Evaluate content only, never identity, accent, or personality. Do not invent details; quote the transcript when you refer to it.
 Prompt: {daily_prompt}\nTranscript: {transcript}\n
-Return 1–5 integer ratings and concise lists.
+Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1), not whole numbers. The anchors below describe 1, 3 and 5; place the take precisely between them based on the evidence. Two takes should rarely get the same rating, so avoid defaulting to .0 or .5. Return concise lists alongside the ratings.
 vocabulary: 1 vague, repetitive words, 3 adequate everyday words, 5 precise, varied word choice suited to the topic.
 vocabulary_level: "basic" (simple, repeated, filler-heavy words), "everyday" (plain conversational words), "varied" (some specific, well-chosen words), "precise" (consistently specific, topic-appropriate vocabulary).
 strong_words: up to 5 words or short phrases from the transcript that were specific, vivid, or well chosen. Empty if none.

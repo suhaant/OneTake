@@ -5,8 +5,9 @@ import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Field from '../../components/Field';
 import Panda from '../../components/Panda';
-import { GlassCard, SpeechBubble } from '../../components/Glass';
-import { colors, fonts } from '../../theme';
+import { GlassCard, Gloss, SpeechBubble } from '../../components/Glass';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, fonts, gradients, skyText } from '../../theme';
 import { api, errorText, Persona } from '../../api';
 import { ensurePermission, getPushToken, scheduleStreakReminder } from '../../notifications';
 import { useApp } from '../../store';
@@ -96,7 +97,7 @@ export default function YouTab() {
   return (
     <View style={{ flex: 1 }}>
       <AeroBackground hills={false} />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 40, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>You</Text>
         <View style={styles.pandaRow}>
           <Panda pose={on ? 'celebrate' : 'idle'} headOnly size={84} />
@@ -119,7 +120,11 @@ export default function YouTab() {
               <Text style={styles.rowSub}>{on ? (me?.pushEnabled ? 'Friend alerts and the 9pm streak saver' : '9pm streak saver on this device') : 'Friend scored first · 9pm streak saver'}</Text>
             </View>
             <Pressable accessibilityRole="switch" accessibilityState={{ checked: on }} onPress={on ? turnOff : turnOn} disabled={busy || (!me && !name.trim())} style={[styles.toggle, on && styles.toggleOn]}>
-              <View style={[styles.knob, on && styles.knobOn]} />
+              {on && <LinearGradient colors={[...gradients.lime]} style={StyleSheet.absoluteFill} />}
+              <Gloss height="50%" radius={17} />
+              <View style={[styles.knob, on && styles.knobOn]}>
+                <LinearGradient colors={[...gradients.chrome]} style={StyleSheet.absoluteFill} />
+              </View>
             </Pressable>
           </View>
           <Text style={styles.hint}>At most two a day, and none once you have done your take.</Text>
@@ -132,6 +137,12 @@ export default function YouTab() {
               const active = me.persona === p.id;
               return (
                 <Pressable key={p.id} accessibilityRole="radio" accessibilityState={{ selected: active }} onPress={() => pickPersona(p.id)} disabled={busy} style={[styles.persona, active && styles.personaActive]}>
+                  {active && (
+                    <>
+                      <LinearGradient colors={['#F0FCFF', '#BDEEFF']} style={StyleSheet.absoluteFill} />
+                      <Gloss height="50%" radius={14} />
+                    </>
+                  )}
                   <Text style={styles.personaLabel}>{p.label}</Text>
                   <Text style={styles.personaSample}>{p.sample}</Text>
                 </Pressable>
@@ -148,7 +159,7 @@ export default function YouTab() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 28, color: '#fff', textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  title: { fontFamily: fonts.bold, fontSize: 28, ...skyText },
   pandaRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   card: { padding: 16, gap: 12 },
   label: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.blue },
@@ -156,12 +167,12 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   rowTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.navy },
   rowSub: { marginTop: 2, fontFamily: fonts.medium, fontSize: 13, color: colors.text2 },
-  toggle: { width: 58, height: 34, borderRadius: 17, backgroundColor: '#CFDCE6', padding: 3, justifyContent: 'center' },
-  toggleOn: { backgroundColor: colors.green },
-  knob: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  toggle: { width: 58, height: 34, borderRadius: 17, backgroundColor: '#CFDCE6', padding: 3, justifyContent: 'center', borderWidth: 1, borderColor: '#B7C9D5', overflow: 'hidden' },
+  toggleOn: { borderColor: '#3FA51C' },
+  knob: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', overflow: 'hidden' },
   knobOn: { alignSelf: 'flex-end' },
-  persona: { minHeight: 56, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#CFE8F6', justifyContent: 'center' },
-  personaActive: { backgroundColor: '#DDF4FF', borderColor: '#84D8FF' },
+  persona: { minHeight: 56, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#BFDDEC', justifyContent: 'center', overflow: 'hidden' },
+  personaActive: { borderColor: '#6ED2FB' },
   personaLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
   personaSample: { fontFamily: fonts.medium, fontSize: 13, color: colors.text2 },
   error: { fontFamily: fonts.semi, fontSize: 14, color: '#B3261E', backgroundColor: 'rgba(255,255,255,0.9)', padding: 12, borderRadius: 14, overflow: 'hidden' },

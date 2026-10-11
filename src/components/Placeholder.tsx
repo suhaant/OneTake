@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AeroBackground from './AeroBackground';
 import Panda, { PandaPose } from './Panda';
-import { colors, fonts } from '../theme';
+import { colors, fonts, skyText } from '../theme';
 
 export default function Placeholder({ title, body, pose }: { title: string; body: string; pose: PandaPose }) {
   const insets = useSafeAreaInsets();
@@ -21,13 +21,6 @@ export default function Placeholder({ title, body, pose }: { title: string; body
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', paddingHorizontal: 32, gap: 14 },
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 28,
-    color: '#fff',
-    textShadowColor: 'rgba(0,80,140,0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
+  title: { fontFamily: fonts.bold, fontSize: 28, ...skyText },
   body: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 22, color: colors.navy, textAlign: 'center' },
 });

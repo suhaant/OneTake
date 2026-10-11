@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+import { LinearGradient as ExpoGradient } from 'expo-linear-gradient';
 import AeroBackground from '../components/AeroBackground';
 import BrainResponse from '../components/BrainResponse';
 import ChunkyButton from '../components/ChunkyButton';
@@ -119,7 +120,7 @@ function AttentionCurve({ data, width }: { data: number[]; width: number }) {
 export default function Results() {
   const insets = useSafeAreaInsets();
   const [curveWidth, setCurveWidth] = useState(0);
-  const { result } = useApp();
+  const { result, scoreGuess } = useApp();
   const r = result ?? mockResult;
   const pose = r.score >= 75 ? 'celebrate' : r.score < 55 ? 'console' : 'idle';
   const bubble =
@@ -148,6 +149,17 @@ export default function Results() {
         <View style={styles.hero}>
           <ScoreRing score={r.score} />
           <Text style={styles.heroTitle}>{r.score >= 75 ? 'Nice take.' : r.score < 55 ? 'Tomorrow is a new take.' : 'Good take.'}</Text>
+          {scoreGuess != null && (
+            <View style={styles.guessPill}>
+              <Text style={styles.guessText}>
+                {Math.abs(scoreGuess - r.score) <= 3
+                  ? `You called it: guessed ${scoreGuess}.`
+                  : scoreGuess > r.score
+                    ? `You guessed ${scoreGuess}. Harsh crowd today.`
+                    : `You guessed ${scoreGuess}. Better than you thought.`}
+              </Text>
+            </View>
+          )}
           <Text style={styles.heroSub}>
             Top {r.percentile}% today &nbsp;·&nbsp; #{r.rank.toLocaleString()} of {r.total.toLocaleString()} &nbsp;·&nbsp; {r.delta >= 0 ? '+' : ''}
             {r.delta} on yesterday
@@ -155,6 +167,7 @@ export default function Results() {
         </View>
 
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 28 }]} onLayout={(e) => setCurveWidth(e.nativeEvent.layout.width - 48)}>
+          <ExpoGradient colors={['#E6F7FF', '#FFFFFF']} locations={[0, 0.12]} pointerEvents="none" style={StyleSheet.absoluteFill} />
           <Text style={styles.section}>Score breakdown</Text>
           <View style={{ marginTop: 16, gap: 14 }}>
             {r.details?.delivery && <Bar label="Eye contact" weight="25%" value={r.details.delivery.eyeContact} />}
@@ -226,7 +239,7 @@ export default function Results() {
             ))}
           </View>
 
-          <BrainResponse submissionId={r.submissionId} width={curveWidth} />
+          <BrainResponse submissionId={r.submissionId} />
 
           <View style={styles.hr} />
 
@@ -267,11 +280,17 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', marginTop: 24, gap: 10 },
   heroTitle: { fontFamily: fonts.bold, fontSize: 26, color: '#fff', letterSpacing: -0.3, textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
   heroSub: { fontFamily: fonts.semi, fontSize: 14, color: '#fff', ...shadowText },
+  guessPill: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: '#fff' },
+  guessText: { fontFamily: fonts.bold, fontSize: 13, color: colors.navy },
   sheet: {
     marginTop: 28,
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.95)',
+    overflow: 'hidden',
     paddingTop: 30,
     paddingHorizontal: 24,
     shadowColor: '#003C78',
@@ -298,7 +317,7 @@ const styles = StyleSheet.create({
   alsoLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.text2 },
   alsoValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.navy },
   statGrid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  stat: { flex: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.sheet, borderWidth: 1, borderColor: colors.hair },
+  stat: { flex: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#EEF8FE', borderWidth: 1, borderColor: '#D6EAF5' },
   statLabel: { fontFamily: fonts.semi, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted },
   statValue: { marginTop: 2, fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
   statNote: { marginTop: 2, fontFamily: fonts.medium, fontSize: 12, color: colors.text2 },

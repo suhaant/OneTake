@@ -36,7 +36,7 @@ export default function RootLayout() {
   return (
     <AppProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#9FDFFF' } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#43B5F4' } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="prompt" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="thinking" options={{ animation: 'fade', gestureEnabled: false }} />

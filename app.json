@@ -17,7 +17,7 @@
     "android": {
       "package": "app.onetake",
       "adaptiveIcon": {
-        "backgroundColor": "#9FDFFF",
+        "backgroundColor": "#43B5F4",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -53,7 +53,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#9FDFFF"
+          "backgroundColor": "#43B5F4"
         }
       ]
     ],

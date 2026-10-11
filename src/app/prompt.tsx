@@ -8,7 +8,7 @@ import AeroBackground from '../components/AeroBackground';
 import Panda from '../components/Panda';
 import { SpeechBubble } from '../components/Glass';
 import { Back } from '../components/Icons';
-import { colors, fonts } from '../theme';
+import { colors, fonts, skyText } from '../theme';
 import { useApp } from '../store';
 
 const TAKE_SECONDS = 30;
@@ -151,12 +151,12 @@ export default function Prompt() {
   );
 }
 
-const shadowText = { textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
+const shadowText = skyText;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { marginHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontFamily: fonts.bold, fontSize: 14, letterSpacing: 1.4, textTransform: 'uppercase', color: '#fff', ...shadowText },
+  headerTitle: { fontFamily: fonts.bold, fontSize: 14, letterSpacing: 1.4, textTransform: 'uppercase', ...shadowText },
   roundBtn: {
     width: 44,
     height: 44,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   pandaRow: { marginTop: 16, marginHorizontal: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   promptWrap: { marginTop: 18, marginHorizontal: 28 },
   prompt: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 31, letterSpacing: -0.4, color: '#fff', textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
-  promptSub: { marginTop: 8, fontFamily: fonts.medium, fontSize: 14, color: '#fff', opacity: 0.92, ...shadowText },
+  promptSub: { marginTop: 8, fontFamily: fonts.medium, fontSize: 14, opacity: 0.92, ...shadowText },
   finder: {
     flex: 1,
     marginTop: 18,
@@ -179,8 +179,8 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: '#1C2833',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
     shadowColor: '#003264',
     shadowOpacity: 0.35,
     shadowRadius: 20,
@@ -198,5 +198,5 @@ const styles = StyleSheet.create({
   shutter: { width: 78, height: 78, alignItems: 'center', justifyContent: 'center' },
   shutterDot: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E8261E' },
   shutterStop: { width: 30, height: 30, borderRadius: 7 },
-  shutterHint: { fontFamily: fonts.semi, fontSize: 13, color: '#fff', ...shadowText },
+  shutterHint: { fontFamily: fonts.semi, fontSize: 13, ...shadowText },
 });

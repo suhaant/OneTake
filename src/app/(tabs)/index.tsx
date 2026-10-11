@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,9 +7,10 @@ import Svg, { Circle } from 'react-native-svg';
 import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Panda from '../../components/Panda';
-import { Chip } from '../../components/Glass';
+import PromptRoulette from '../../components/PromptRoulette';
+import { Chip, Gloss } from '../../components/Glass';
 import { Check, Envelope, Flame, Gem, Crown, List, Lock } from '../../components/Icons';
-import { colors, fonts, glassShadow } from '../../theme';
+import { colors, fonts, glassShadow, gradients } from '../../theme';
 import { useApp } from '../../store';
 
 function DoneNode({ label, score }: { label: string; score: number }) {
@@ -23,7 +24,10 @@ function DoneNode({ label, score }: { label: string; score: number }) {
 
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const { streak, xp, rank, result, me, doneToday: done, pastTakes, totalTakes, promptText, refreshStats } = useApp();
+  const { streak, xp, rank, result, me, doneToday: done, pastTakes, totalTakes, promptText, takers, refreshStats } = useApp();
+  const [spinning, setSpinning] = useState(false);
+  // The envelope spins the day's prompt into view first; the reel hands off to the recorder.
+  const openEnvelope = () => (done ? router.push('/results') : setSpinning(true));
   const todayScore = result?.score ?? me?.todayScore ?? null;
   const dayNumber = totalTakes + (done ? 0 : 1);
 
@@ -39,6 +43,8 @@ export default function Home() {
 
       {/* stat bar */}
       <View style={[styles.statBar, { top: insets.top + 8 }]}>
+        <LinearGradient colors={[...gradients.glass]} style={StyleSheet.absoluteFill} />
+        <Gloss height="50%" radius={22} />
         <View style={styles.stat}>
           <Flame size={26} />
           <Text style={[styles.statText, { color: colors.orange }]}>{streak}</Text>
@@ -54,7 +60,9 @@ export default function Home() {
       </View>
 
       {/* unit banner */}
-      <LinearGradient colors={['#4FC3F7', '#1E9EE6']} style={[styles.banner, { top: insets.top + 78 }]}>
+      <View style={[styles.banner, { top: insets.top + 78 }]}>
+        <LinearGradient colors={[...gradients.aqua]} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
+        <Gloss height="52%" radius={22} />
         <View style={{ flex: 1 }}>
           <Text style={styles.bannerTitle}>{done && todayScore != null ? `Today · ${todayScore}` : `Day ${dayNumber}`}</Text>
           <Text style={styles.bannerSub} numberOfLines={2}>
@@ -62,9 +70,11 @@ export default function Home() {
           </Text>
         </View>
         <Pressable accessibilityLabel="Past takes" onPress={() => router.push('/results')} style={styles.bannerBtn}>
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.12)']} style={StyleSheet.absoluteFill} />
+          <Gloss height="50%" radius={16} />
           <List size={24} />
         </Pressable>
-      </LinearGradient>
+      </View>
 
       {/* path */}
       <View style={[styles.path, { top: insets.top + 190 }]}>
@@ -82,8 +92,12 @@ export default function Home() {
 
         {/* today */}
         <View style={{ position: 'absolute', left: 50, top: 200, width: 140, alignItems: 'center' }}>
-          <View style={styles.openTag}>
-            <Text style={styles.openTagText}>{done ? 'DONE' : 'OPEN'}</Text>
+          <View>
+            <View style={styles.openTag}>
+              <LinearGradient colors={['#FFFFFF', '#F2FAFF', '#DFF2FB']} style={StyleSheet.absoluteFill} />
+              <Gloss height="50%" radius={14} />
+              <Text style={styles.openTagText}>{done ? 'DONE' : 'OPEN'}</Text>
+            </View>
             <View style={styles.openTagTail} />
           </View>
           <View style={{ marginTop: 16, width: 124, height: 124, alignItems: 'center', justifyContent: 'center' }}>
@@ -107,7 +121,7 @@ export default function Home() {
               depth={8}
               icon={done ? <Check size={44} /> : <Envelope size={44} />}
               accessibilityLabel="Open today's envelope"
-              onPress={() => router.push(done ? '/results' : '/prompt')}
+              onPress={openEnvelope}
             />
           </View>
           <View style={{ marginTop: 14 }}>
@@ -116,18 +130,29 @@ export default function Home() {
         </View>
 
         {/* panda beside the node */}
-        <Pressable onPress={() => router.push('/prompt')} style={{ position: 'absolute', left: 196, top: 200 }}>
+        <Pressable onPress={openEnvelope} style={{ position: 'absolute', left: 196, top: 200 }}>
           <Panda pose="idle" size={180} envelope={!done} />
         </Pressable>
 
         {/* locked */}
-        <View style={{ position: 'absolute', left: 150, top: 436 }}>
+        <View style={{ position: 'absolute', left: 150, top: 418 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Tomorrow, locked" />
         </View>
-        <View style={{ position: 'absolute', left: 230, top: 504 }}>
+        <View style={{ position: 'absolute', left: 250, top: 452 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Locked" />
         </View>
       </View>
+
+      <PromptRoulette
+        visible={spinning}
+        prompt={promptText}
+        takers={takers}
+        onClose={() => setSpinning(false)}
+        onDone={() => {
+          setSpinning(false);
+          router.push('/prompt');
+        }}
+      />
     </View>
   );
 }
@@ -139,10 +164,11 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     height: 56,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.6)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.95)',
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -154,31 +180,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 14,
     paddingLeft: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderWidth: 1,
-    borderColor: '#0C6FB3',
-    shadowColor: '#00508C',
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#3FCBF8',
+    overflow: 'hidden',
+    shadowColor: '#0A6DAE',
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
-  bannerTitle: { fontFamily: fonts.display, fontSize: 22, color: '#fff', letterSpacing: -0.3 },
-  bannerSub: { fontFamily: fonts.medium, fontSize: 15, color: '#fff', opacity: 0.95, marginTop: 2 },
+  bannerTitle: { fontFamily: fonts.display, fontSize: 22, color: '#fff', letterSpacing: -0.3, textShadowColor: 'rgba(0,60,120,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  bannerSub: { fontFamily: fonts.medium, fontSize: 15, color: '#fff', marginTop: 2, textShadowColor: 'rgba(0,60,120,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   bannerBtn: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: '#3CB5F2',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#0C6FB3',
-    borderBottomWidth: 4,
-    borderBottomColor: '#0A5F99',
+    borderColor: 'rgba(255,255,255,0.8)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -188,9 +214,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 14,
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#CFE8F6',
-    borderBottomWidth: 4,
+    borderWidth: 1.5,
+    borderColor: '#BFDDEC',
+    overflow: 'hidden',
+    ...glassShadow,
   },
   openTagText: { fontFamily: fonts.display, fontSize: 16, letterSpacing: 1.5, color: '#2E9E12' },
   openTagTail: {
@@ -200,10 +227,10 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     marginLeft: 2,
-    backgroundColor: '#fff',
-    borderRightWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: '#CFE8F6',
+    backgroundColor: '#DFF2FB',
+    borderRightWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: '#BFDDEC',
     transform: [{ rotate: '45deg' }],
   },
 });

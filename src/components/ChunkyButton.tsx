@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { colors, fonts } from '../theme';
+import { colors, fonts, glow } from '../theme';
+import { Gloss } from './Glass';
 
 type Tone = 'green' | 'blue' | 'white' | 'yellow' | 'locked';
 
-const tones: Record<Tone, { face: [string, string]; edge: string; border: string; text: string }> = {
-  green: { face: ['#A6F06A', '#58CC02'], edge: '#3E9A0A', border: '#3F8F16', text: '#fff' },
-  blue: { face: ['#4FC3F7', '#1E9EE6'], edge: '#0A5F99', border: '#0C6FB3', text: '#fff' },
-  yellow: { face: ['#FFE566', '#FFC800'], edge: '#C98F00', border: '#D59A00', text: '#7A4A00' },
-  white: { face: ['#FFFFFF', '#FFFFFF'], edge: '#CFE8F6', border: '#CFE8F6', text: colors.navy },
-  locked: { face: ['#F2F6F8', '#D5DEE4'], edge: '#A9B8C3', border: '#AEBCC6', text: '#7E919F' },
+const tones: Record<Tone, { face: readonly [string, string, string]; border: string; text: string; halo: string; underglow: string }> = {
+  green: { face: ['#E9FF9A', '#7EDC2E', '#3DAE18'], border: '#2E8F12', text: '#fff', halo: '#58CC02', underglow: '#D8FF66' },
+  blue: { face: ['#B8F3FF', '#3FCBF8', '#0C8FD2'], border: '#0A6DAE', text: '#fff', halo: '#1E9EE6', underglow: '#9FF1FF' },
+  yellow: { face: ['#FFF7B8', '#FFD93D', '#F2A900'], border: '#C98F00', text: '#7A4A00', halo: '#FFC800', underglow: '#FFF2A0' },
+  white: { face: ['#FFFFFF', '#F2FAFF', '#D9EEF9'], border: '#BFDDEC', text: colors.navy, halo: '#7FC8EE', underglow: '#FFFFFF' },
+  locked: { face: ['#F7FAFC', '#DCE5EB', '#B9C7D1'], border: '#A3B3BF', text: '#7E919F', halo: '#9FB3C0', underglow: '#FFFFFF' },
 };
 
 type Props = {
@@ -21,27 +22,20 @@ type Props = {
   icon?: React.ReactNode;
   /** circle button of this diameter instead of a pill */
   circle?: number;
+  /** how far the button sits off the page: drives the halo size */
   depth?: number;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
   accessibilityLabel?: string;
 };
 
-/** Duolingo-style pressable: a hard bottom edge that collapses on press. */
-export default function ChunkyButton({
-  onPress,
-  tone = 'green',
-  label,
-  icon,
-  circle,
-  depth = 6,
-  style,
-  disabled,
-  accessibilityLabel,
-}: Props) {
+/** Aero gel button: gradient body, specular across the top half, light bouncing in from below. */
+export default function ChunkyButton({ onPress, tone = 'green', label, icon, circle, depth = 6, style, disabled, accessibilityLabel }: Props) {
   const [down, setDown] = useState(false);
   const t = tones[tone];
-  const size = circle ? { width: circle, height: circle, borderRadius: circle / 2 } : { height: 58, borderRadius: 999 };
+  const r = circle ? circle / 2 : 999;
+  const size = circle ? { width: circle, height: circle, borderRadius: r } : { height: 58, borderRadius: r };
+  const halo = tone === 'locked' ? glow(t.halo, 0.2) : glow(t.halo, 0.45 + Math.min(depth, 8) * 0.03);
 
   return (
     <Pressable
@@ -58,21 +52,19 @@ export default function ChunkyButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={[{ paddingBottom: depth }, style]}
+      style={[{ paddingBottom: Math.max(depth - 4, 2) }, style]}
     >
-      <View style={[styles.edge, size, { backgroundColor: t.edge }]}>
-        <LinearGradient
-          colors={t.face}
-          style={[
-            styles.face,
-            size,
-            { borderColor: t.border, transform: [{ translateY: down ? depth - 1 : 0 }] },
-            circle ? undefined : styles.pillPad,
-          ]}
-        >
-          <View style={styles.sheen} />
+      <View style={[size, halo, { transform: [{ scale: down ? 0.96 : 1 }] }]}>
+        <LinearGradient colors={[...t.face]} locations={[0, 0.55, 1]} style={[styles.face, size, { borderColor: t.border }, circle ? undefined : styles.pillPad]}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(255,255,255,0)', t.underglow]}
+            style={[styles.underglow, { opacity: 0.55 }]}
+          />
+          <Gloss height={circle ? '50%' : '52%'} radius={r} />
+          {down && <View pointerEvents="none" style={styles.pressShade} />}
           {icon}
-          {label ? <Text style={[styles.label, { color: t.text }, tone === 'white' && styles.labelDark]}>{label}</Text> : null}
+          {label ? <Text style={[styles.label, { color: t.text }, (tone === 'white' || tone === 'locked') && styles.labelDark]}>{label}</Text> : null}
         </LinearGradient>
       </View>
     </Pressable>
@@ -80,34 +72,23 @@ export default function ChunkyButton({
 }
 
 const styles = StyleSheet.create({
-  edge: { position: 'relative' },
   face: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
     overflow: 'hidden',
   },
-  pillPad: { paddingHorizontal: 22 },
-  sheen: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-  },
+  pillPad: { paddingHorizontal: 24 },
+  underglow: { position: 'absolute', left: '12%', right: '12%', bottom: 0, height: '38%', borderTopLeftRadius: 999, borderTopRightRadius: 999 },
+  pressShade: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,40,80,0.12)' },
   label: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowColor: 'rgba(0,0,0,0.28)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadowRadius: 2,
   },
-  labelDark: { textShadowColor: 'transparent' },
+  labelDark: { textShadowColor: 'rgba(255,255,255,0.8)', textShadowOffset: { width: 0, height: 1 } },
 });

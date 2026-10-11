@@ -124,7 +124,7 @@ export default function SharePage() {
   );
 }
 
-const shadowText = { textShadowColor: 'rgba(0,80,140,0.45)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 };
+const shadowText = { textShadowColor: 'rgba(0,70,130,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 };
 
 const styles = StyleSheet.create({
   header: { position: 'absolute', left: 20, right: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -137,7 +137,7 @@ const card = StyleSheet.create({
   hillA: { position: 'absolute', left: -300, top: 1060, width: 1200, height: 700, borderRadius: 600, backgroundColor: '#8FD93A' },
   hillB: { position: 'absolute', left: 500, top: 1120, width: 1100, height: 700, borderRadius: 550, backgroundColor: '#74C62C' },
   brand: { position: 'absolute', left: 72, top: 64, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  brandTile: { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.green, borderWidth: 2, borderColor: '#3F8F16', borderBottomWidth: 6, borderBottomColor: colors.greenDark, alignItems: 'center', justifyContent: 'center' },
+  brandTile: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#7EDC2E', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
   brandText: { fontFamily: fonts.bold, fontSize: 40, letterSpacing: -1, color: '#fff', ...shadowText },
   day: { position: 'absolute', right: 72, top: 76, fontFamily: fonts.semi, fontSize: 24, color: '#fff', ...shadowText },
   prompt: { position: 'absolute', left: 72, right: 72, top: 180, fontFamily: fonts.medium, fontSize: 34, lineHeight: 44, color: '#fff', ...shadowText },

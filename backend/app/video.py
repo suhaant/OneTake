@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 class DeliveryEvaluation(BaseModel):
     """Observable delivery ratings; Gemini should not infer emotions or identity."""
-    eye_contact: int = Field(ge=1, le=5)
-    posture: int = Field(ge=1, le=5)
-    body_language: int = Field(ge=1, le=5)
+    eye_contact: float = Field(ge=1, le=5)
+    posture: float = Field(ge=1, le=5)
+    body_language: float = Field(ge=1, le=5)
     strengths: list[str] = Field(min_length=1)
     improvements: list[str] = Field(min_length=1)
 
@@ -76,11 +76,11 @@ def evaluate_delivery(video_path: str | Path, daily_prompt: str) -> DeliveryEval
     normalized = normalize_video(video_path, video_path.with_name(f"{video_path.stem}.eval.mp4"))
     uploaded_video = _wait_until_active(client, client.files.upload(file=str(normalized)))
     prompt = f"""Evaluate only observable presentation behaviors in this short video for the prompt: {daily_prompt}
-Return 1–5 integer ratings:
+Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1), not whole numbers. The anchors below describe 1, 3 and 5; place the take precisely between them based on the evidence. Two takes should rarely get the same rating, so avoid defaulting to .0 or .5.
 - eye_contact: how consistently the speaker's gaze is directed at the camera lens (the audience). 1 mostly looking away or reading, 3 roughly half the time, 5 steady gaze with only natural brief breaks.
 - posture: 1 slouched, hunched, or swaying, 3 mostly upright with some slumping or shifting, 5 upright, shoulders square and open, stable throughout.
 - body_language: hand gestures. 1 hands hidden, frozen, or fidgeting, 3 occasional gestures loosely tied to the words, 5 purposeful, varied gestures that reinforce key points.
-The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3 and say only that it was out of view, without advising on camera setup.
+The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3.0 and say only that it was out of view, without advising on camera setup.
 Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead."""
     response = client.models.generate_content(
         model=settings.video_model, contents=[uploaded_video, prompt],

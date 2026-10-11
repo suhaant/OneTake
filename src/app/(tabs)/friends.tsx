@@ -10,7 +10,7 @@ import Field from '../../components/Field';
 import Panda from '../../components/Panda';
 import { Chip, GlassCard, SpeechBubble } from '../../components/Glass';
 import { Friends as FriendsIcon, Share } from '../../components/Icons';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, skyText } from '../../theme';
 import { api, ChallengeDraft, errorText, Friend } from '../../api';
 import { useApp } from '../../store';
 
@@ -127,7 +127,7 @@ export default function FriendsTab() {
   return (
     <View style={{ flex: 1 }}>
       <AeroBackground hills={false} />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 40, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Friends</Text>
         <View style={styles.pandaRow}>
           <Panda pose="encourage" headOnly size={84} />
@@ -168,10 +168,10 @@ export default function FriendsTab() {
   );
 }
 
-const shadowText = { textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 };
+const shadowText = skyText;
 
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 28, color: '#fff', ...shadowText },
+  title: { fontFamily: fonts.bold, fontSize: 28, ...shadowText },
   pandaRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   card: { padding: 16, gap: 12 },
   label: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.blue },
@@ -181,6 +181,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   rowName: { fontFamily: fonts.semi, fontSize: 16, color: colors.navy },
   divider: { borderTopWidth: 1, borderTopColor: colors.hair },
-  nudge: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#DDF4FF', borderWidth: 2, borderColor: '#84D8FF', alignItems: 'center', justifyContent: 'center' },
+  nudge: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#DDF4FF', borderWidth: 1.5, borderColor: '#6ED2FB', alignItems: 'center', justifyContent: 'center' },
   nudgeText: { fontFamily: fonts.bold, fontSize: 14, color: colors.blue },
 });

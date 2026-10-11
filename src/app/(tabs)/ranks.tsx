@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AeroBackground from '../../components/AeroBackground';
 import Panda from '../../components/Panda';
-import { SpeechBubble } from '../../components/Glass';
+import { Gloss, SpeechBubble } from '../../components/Glass';
 import { Crown } from '../../components/Icons';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, gradients, skyText } from '../../theme';
 import { api, Board, BoardEntry } from '../../api';
 import { leaderboard as sampleBoard } from '../../data/mock';
 import { useApp } from '../../store';
@@ -74,7 +74,9 @@ function Podium({ p, place, height }: { p: Row | undefined; place: number; heigh
         <View style={{ width: first ? 68 : 56, height: first ? 68 : 56, borderRadius: 34, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)', borderStyle: 'dashed' }} />
       )}
       <Text style={styles.podiumName}>{p?.name ?? 'Open'}</Text>
-      <View style={[styles.podiumBlock, { height }, first && { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
+      <View style={[styles.podiumBlock, { height }]}>
+        <LinearGradient colors={first ? [...gradients.sun] : [...gradients.glass]} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+        <Gloss height="45%" radius={16} />
         <Text style={[styles.podiumScore, first && { fontSize: 38 }]}>{p ? p.score : '–'}</Text>
         <Text style={[styles.podiumPlace, first && { color: '#C9A000' }]}>{place === 1 ? '1st' : place === 2 ? '2nd' : '3rd'}</Text>
       </View>
@@ -125,9 +127,16 @@ export default function Ranks() {
         </View>
 
         <View style={styles.seg}>
+          <Gloss height="55%" radius={16} />
           {tabs.map((t) => (
             <Pressable key={t} onPress={() => setTab(t)} style={[styles.segItem, tab === t && styles.segActive]} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
-              <Text style={[styles.segText, tab === t && { fontFamily: fonts.bold }]}>{t}</Text>
+              {tab === t && (
+                <>
+                  <LinearGradient colors={[...gradients.aqua]} style={StyleSheet.absoluteFill} />
+                  <Gloss height="50%" radius={12} />
+                </>
+              )}
+              <Text style={[styles.segText, tab === t && { fontFamily: fonts.bold, color: '#fff' }]}>{t}</Text>
             </Pressable>
           ))}
         </View>
@@ -148,7 +157,8 @@ export default function Ranks() {
           </View>
         )}
 
-        <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 96 }]}>
+          <LinearGradient colors={['rgba(255,255,255,0.86)', '#FFFFFF']} locations={[0, 0.25]} style={StyleSheet.absoluteFill} />
           {rest.map((p, i) => (
             <View key={p.userId} style={[styles.row, i < rest.length - 1 && styles.rowBorder]}>
               <Text style={styles.rank}>{i + 4}</Text>
@@ -162,7 +172,8 @@ export default function Ranks() {
           ))}
           {rows.length > 3 && <Text style={styles.dots}>· · ·</Text>}
 
-          <LinearGradient colors={['#DDF4FF', '#C8ECFF']} style={styles.you}>
+          <LinearGradient colors={['#EAFBFF', '#BFEEFF']} style={styles.you}>
+            <Gloss height="50%" radius={22} />
             <Text style={[styles.rank, { width: 54, color: colors.blue }]}>{myRank ? myRank.toLocaleString() : '—'}</Text>
             <Avatar initials={initialsOf(me?.name || 'You')} colors={['#4FC3F7', '#0C6FB3']} ring="#fff" />
             <View style={{ flex: 1 }}>
@@ -181,25 +192,25 @@ export default function Ranks() {
   );
 }
 
-const shadowText = { textShadowColor: 'rgba(0,80,140,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
+const shadowText = skyText;
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontFamily: fonts.bold, fontSize: 26, color: '#fff', letterSpacing: -0.4, ...shadowText },
-  resets: { fontFamily: fonts.semi, fontSize: 13, color: '#fff', ...shadowText },
-  seg: { marginHorizontal: 20, marginTop: 14, height: 44, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
-  segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  segActive: { backgroundColor: '#fff', shadowColor: '#003C78', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  title: { fontFamily: fonts.bold, fontSize: 26, letterSpacing: -0.4, ...shadowText },
+  resets: { fontFamily: fonts.semi, fontSize: 13, ...shadowText },
+  seg: { marginHorizontal: 20, marginTop: 14, height: 46, padding: 4, flexDirection: 'row', borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', overflow: 'hidden' },
+  segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
+  segActive: { borderWidth: 1, borderColor: '#0A6DAE' },
   segText: { fontFamily: fonts.semi, fontSize: 14, color: colors.navy },
-  promptLine: { marginHorizontal: 20, marginTop: 14, fontFamily: fonts.medium, fontSize: 14, color: '#fff', ...shadowText },
+  promptLine: { marginHorizontal: 20, marginTop: 14, fontFamily: fonts.medium, fontSize: 14, ...shadowText },
   note: { marginHorizontal: 20, marginTop: 8, fontFamily: fonts.semi, fontSize: 12, color: colors.navy, backgroundColor: 'rgba(255,255,255,0.7)', padding: 8, borderRadius: 10, overflow: 'hidden' },
   empty: { marginHorizontal: 20, marginTop: 28, marginBottom: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   podium: { marginHorizontal: 20, marginTop: 28, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  podiumName: { fontFamily: fonts.bold, fontSize: 14, color: '#fff', ...shadowText },
-  podiumBlock: { width: '100%', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderBottomWidth: 0, borderColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center' },
+  podiumName: { fontFamily: fonts.bold, fontSize: 14, ...shadowText },
+  podiumBlock: { width: '100%', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderBottomWidth: 0, borderColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   podiumScore: { fontFamily: fonts.display, fontSize: 30, color: colors.navy, includeFontPadding: false },
   podiumPlace: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted },
-  sheet: { flexGrow: 1, backgroundColor: '#fff', paddingTop: 8, paddingHorizontal: 20, shadowColor: '#003C78', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: -8 } },
+  sheet: { flexGrow: 1, backgroundColor: 'rgba(255,255,255,0.92)', borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1.5, borderBottomWidth: 0, borderColor: 'rgba(255,255,255,0.95)', overflow: 'hidden', paddingTop: 14, paddingHorizontal: 20, shadowColor: '#003C78', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: -8 } },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 4 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#E3EEF6' },
   rank: { width: 30, fontFamily: fonts.bold, fontSize: 15, color: colors.muted },
@@ -207,5 +218,5 @@ const styles = StyleSheet.create({
   sub: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted },
   score: { fontFamily: fonts.bold, fontSize: 20, color: colors.navy },
   dots: { textAlign: 'center', fontFamily: fonts.semi, fontSize: 13, color: colors.muted, paddingVertical: 10 },
-  you: { marginHorizontal: -20, marginTop: 'auto', paddingVertical: 14, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 2, borderTopColor: '#84D8FF' },
+  you: { marginTop: 'auto', marginBottom: 6, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, borderWidth: 1.5, borderColor: '#84D8FF', overflow: 'hidden' },
 });
