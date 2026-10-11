@@ -47,27 +47,41 @@ export function dontLine(n: number): Line {
 
 export const almostDone: Line = { text: '[excited] Almost done! Hang tight.', mood: 'celebrate', gesture: 'cheer' };
 
-/** Results screen: the verdict for the score, then what to work on. */
+/** The weakest two or three areas of a take, as short labels he can list in one breath. */
+export function focusAreas(r: TakeResult): string[] {
+  const areas: { label: string; score: number }[] = [
+    { label: 'fewer fillers', score: r.voice },
+    { label: 'word choice', score: r.content },
+  ];
+  if (r.details) {
+    areas.push({ label: 'structure', score: r.details.structure.score });
+    if (r.details.pace.band !== 'on target') areas.push({ label: 'your pace', score: r.details.pace.band.includes('bit') ? 65 : 45 });
+    if (r.details.delivery) {
+      areas.push({ label: 'eye contact', score: r.details.delivery.eyeContact });
+      areas.push({ label: 'posture', score: r.details.delivery.posture });
+      areas.push({ label: 'hand gestures', score: r.details.delivery.gestures });
+    }
+  }
+  return areas
+    .sort((a, b) => a.score - b.score)
+    .filter((a, i) => i === 0 || a.score < 80)
+    .slice(0, 3)
+    .map((a) => a.label);
+}
+
+/** Results screen: the verdict for the score, then one short line on what to work on. */
 export function verdictLines(name: string | null, r: TakeResult): Line[] {
   const score = r.score;
   const verdict: Line =
     score >= 85
-      ? { text: `[excited] Overall, great job${withName(name)}! That was a strong take.`, mood: 'celebrate', gesture: 'cheer' }
+      ? { text: `[excited] Overall, great job${withName(name)}!`, mood: 'celebrate', gesture: 'cheer' }
       : score >= 70
-        ? { text: `[cheerful] Not too shabby${withName(name)}! Solid take.`, mood: 'encourage', gesture: 'thumbs' }
+        ? { text: `[cheerful] Not too shabby${withName(name)}!`, mood: 'encourage', gesture: 'thumbs' }
         : score >= 55
-          ? { text: `Hmm. You could use some work${withName(name)}. But that's what tomorrow is for.`, mood: 'hello', gesture: 'shrug' }
-          : { text: `[sighs] This is not your best performance${withName(name)}. Let's fix that.`, mood: 'console', gesture: 'shrug' };
-  const fixes = r.moments
-    .filter((m) => !m.good)
-    .map((m) => m.body)
-    .slice(0, 3);
-  if (!fixes.length) fixes.push(r.focusTitle);
-  const list = fixes.map((f) => f.trim().replace(/[.!?]+$/, '')).join('. ');
-  const improve: Line = {
-    text: `Here's what to improve: ${list}. ${r.focusBody.trim()} Work on that and tomorrow's take will be better.`,
-    mood: score >= 70 ? 'encourage' : 'hello',
-    gesture: 'point',
-  };
+          ? { text: `Hmm. You could use some work${withName(name)}.`, mood: 'hello', gesture: 'shrug' }
+          : { text: `[sighs] This is not your best performance${withName(name)}.`, mood: 'console', gesture: 'shrug' };
+  const areas = focusAreas(r);
+  const list = areas.length > 1 ? `${areas.slice(0, -1).join(', ')} and ${areas.at(-1)}` : areas[0];
+  const improve: Line = { text: `Just work on ${list} to help you improve.`, mood: score >= 70 ? 'encourage' : 'hello', gesture: 'point' };
   return [verdict, improve];
 }
