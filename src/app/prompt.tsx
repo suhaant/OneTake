@@ -82,8 +82,14 @@ export default function Prompt() {
         if (l === lines.countdown && /[1-5]/.test(ch)) setCount(Number(ch));
       },
     });
-    setCount(null);
-    if (finished) await record();
+    if (!finished) {
+      setCount(null);
+      return;
+    }
+    // The "1" is spoken at the very end of the clip; keep it on screen into the first beat of recording
+    // so the countdown reads 5-4-3-2-1 rather than 5-4-3-2-blink.
+    setTimeout(() => setCount(null), 700);
+    await record();
   };
 
   /** Skip the talk and roll now. */
@@ -264,7 +270,19 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   countWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  count: { fontFamily: fonts.bold, fontSize: 128, lineHeight: 140, color: '#fff', textShadowColor: 'rgba(0,60,120,0.6)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 18 },
+  count: {
+    fontFamily: fonts.bold,
+    fontSize: 128,
+    lineHeight: 160,
+    includeFontPadding: false,
+    textAlign: 'center',
+    minWidth: 160,
+    paddingHorizontal: 12,
+    color: '#fff',
+    textShadowColor: 'rgba(0,60,120,0.6)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 18,
+  },
   finderStatus: { position: 'absolute', left: 16, top: 14, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1, color: '#fff', opacity: 0.9 },
   timer: { position: 'absolute', right: 14, top: 12, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   timerText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
