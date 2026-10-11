@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,8 @@ import AeroBackground from '../components/AeroBackground';
 import ChunkyButton from '../components/ChunkyButton';
 import Panda from '../components/Panda';
 import { GlassCard, Gloss, SpeechBubble } from '../components/Glass';
-import { Check } from '../components/Icons';
+import { Check, Sound } from '../components/Icons';
+import { useAnalysisMusic } from '../components/AnalysisMusic';
 import { colors, fonts, gradients } from '../theme';
 import { useApp } from '../store';
 
@@ -83,16 +84,22 @@ export default function Thinking() {
   const [locked, setLocked] = useState(scoreGuess != null);
   const [tip, setTip] = useState(() => Math.floor(Math.random() * tips.length));
   const [fade] = useState(() => new Animated.Value(1));
+  const music = useAnalysisMusic(!failed);
+  const { fadeOut } = music;
 
   useEffect(() => {
     let active = true;
     analyze()
-      .then(() => active && router.replace('/results'))
+      .then(async () => {
+        if (!active) return;
+        await fadeOut();
+        if (active) router.replace('/results');
+      })
       .catch(() => active && setFailed(true));
     return () => {
       active = false;
     };
-  }, [analyze]);
+  }, [analyze, fadeOut]);
 
   // Elapsed seconds drive the stage list; nothing counts down, so running long never looks broken.
   useEffect(() => {
@@ -150,6 +157,10 @@ export default function Thinking() {
           <Panda pose="thinking" headOnly size={84} />
           <SpeechBubble text={stages[stageIndex].doing} />
         </View>
+
+        <Pressable accessibilityRole="button" accessibilityLabel={music.muted ? 'Turn music on' : 'Turn music off'} onPress={music.toggle} style={styles.soundBtn}>
+          <Sound muted={music.muted} />
+        </Pressable>
 
         {/* 1. what is happening, step by step */}
         <GlassCard style={styles.card}>
@@ -216,6 +227,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
   pandaRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  soundBtn: { position: 'absolute', right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.85)', borderWidth: 1, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   card: { padding: 16, gap: 10 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.blue },
   stage: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },

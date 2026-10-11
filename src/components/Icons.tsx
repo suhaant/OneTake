@@ -98,3 +98,17 @@ export const List = ({ size = 24, color = '#fff' }: P) => (
     <Path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" {...stroke(color)} strokeWidth={2.4} />
   </Svg>
 );
+
+export const Sound = ({ size = 22, color = '#1273B5', muted = false }: P & { muted?: boolean }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill={color} stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+    {muted ? (
+      <Path d="M16 9.5l5 5M21 9.5l-5 5" {...stroke(color)} />
+    ) : (
+      <>
+        <Path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" {...stroke(color)} />
+        <Path d="M18 7a7 7 0 0 1 0 10" {...stroke(color)} />
+      </>
+    )}
+  </Svg>
+);
