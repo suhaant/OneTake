@@ -3,11 +3,11 @@ import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 
-export type Clip = 'sky' | 'bubbles' | 'island' | 'grass';
+export type Clip = 'sky' | 'bubbles' | 'island' | 'grass' | 'meadow';
 
 /**
  * Short portrait loops, silent, with the wrap-around crossfade baked in so the native loop is seamless
- * (scripts/loop-clip.sh). island is the Gemini still from assets/art animated by Veo; grass is the
+ * (scripts/loop-clip.sh). island and meadow are Gemini stills from assets/art animated by Veo; grass is the
  * delivered grass_sky_vertical clip; sky and bubbles are cuts from the reference footage.
  */
 const CLIPS: Record<Clip, number> = {
@@ -16,6 +16,8 @@ const CLIPS: Record<Clip, number> = {
   island: require('../../assets/video/island.mp4'),
   // the delivered grass_sky_vertical clip: lawn, bubbles and clouds, 5 s loop
   grass: require('../../assets/video/grass.mp4'),
+  // the meadow still animated by Veo: dewy grass swaying
+  meadow: require('../../assets/video/meadow.mp4'),
 };
 
 function prime(p: VideoPlayer) {

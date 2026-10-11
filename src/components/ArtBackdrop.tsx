@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export type Art = 'island' | 'sky' | 'bubbles' | 'water' | 'meadow';
+export type Art = 'island' | 'islandNear' | 'sky' | 'bubbles' | 'water' | 'meadow';
 
 /**
  * Full-bleed stills rendered by Gemini for the app's Frutiger Aero scenes (scripts/gen-art.mjs).
@@ -10,6 +10,8 @@ export type Art = 'island' | 'sky' | 'bubbles' | 'water' | 'meadow';
  */
 const ART: Record<Art, number> = {
   island: require('../../assets/art/island.jpg'),
+  // the island framed on its lower 82%, matching the zoomed home loop
+  islandNear: require('../../assets/art/island-near.jpg'),
   sky: require('../../assets/art/sky.jpg'),
   bubbles: require('../../assets/art/bubbles.jpg'),
   water: require('../../assets/art/water.jpg'),

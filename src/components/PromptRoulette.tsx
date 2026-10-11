@@ -82,7 +82,7 @@ function Reel({ prompt, takers, onDone }: { prompt: string; takers: number; onDo
 
   return (
       <View style={styles.root}>
-        <AeroBackground art="meadow" />
+        <AeroBackground video="meadow" poster="meadow" />
 
         <View style={styles.top}>
           <Text style={styles.eyebrow}>Drawing today&apos;s prompt</Text>
