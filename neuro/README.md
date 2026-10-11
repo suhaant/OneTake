@@ -4,10 +4,12 @@ After a take is transcribed, its words and their timings go through Meta's
 [TRIBE v2](https://huggingface.co/facebook/tribev2) model, which predicts the fMRI response an
 average listener would have. The results screen then shows a "Brain response" section:
 
-- a **3D brain** coloured with the prediction (drag to rotate, play it through the take),
-- a **response strength** rank and a **language vividness** rank against 100 calibration texts,
-- how the **language, social, auditory and default-mode networks** ranked,
-- the moment with the **strongest predicted response**, with the words spoken there.
+- a **wording meter** from formal to plain and vivid, which is what the prediction tracks,
+- the moment with the **strongest predicted response**, with the words spoken there,
+- a **3D brain** coloured with the prediction (drag to rotate, play it through the take).
+
+There is deliberately no score out of 100: on real takes the prediction ran against the speaking
+score (see Test 3 in [ANALYSIS.md](ANALYSIS.md)).
 
 ![3D viewer](docs/viewer_folded.png)
 

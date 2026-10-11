@@ -13,6 +13,7 @@ behind each number is in `data/`; the scripts are in `tools/`.
 | Do filler words lower it? | Barely | 15 of 25 topics |
 | Does it track what real listeners find engaging? | No evidence | r = +0.04 over a 22-minute story, 21 listeners |
 | Does it pick out the stronger moment within 30 seconds? | Slight edge | 60% against 50% chance, borderline |
+| Does it agree with the app's speaking score? | No, it runs against it | Structured formal takes rank 2 to 18; a rambling one ranks 56 |
 
 **Use it as** "predicted brain response" or "language vividness". **Do not use it as** an
 engagement grade.
@@ -119,6 +120,31 @@ Limits of this test:
   slow trends. A rerun with one call per story part would settle that.
 - The paper found engagement in how regions coordinate across real listeners. This test used
   activity levels from one predicted "average" brain, which is a different measure.
+
+## Test 3: real takes from the app
+
+Six 30-second takes recorded in the app on the community prompt, re-scored directly against the
+API. Only two still had a speaking score in the backend's store.
+
+| Take | Speaking score | Raw score rank | Mean word length | Pace |
+|---|---|---|---|---|
+| Rambling, slang, never answers the prompt | 21 | 56 | 3.69 | 196 wpm |
+| Bike lanes, clear and structured | 89 | 46 | 4.55 | 178 wpm |
+| Volunteering from a younger age | not stored | 18 | 4.60 | 183 wpm |
+| Building more libraries | not stored | 16 | 4.88 | 183 wpm |
+| Data centres, structured with reasons | not stored | 2 | 4.81 | 189 wpm |
+
+- Pace does not explain it: re-timing each take to an even 150 words per minute left the ranks
+  where they were (2 stayed 2, 16 stayed 16; the rambling take went from 56 to 50).
+- Word choice does: structured answers use longer, more abstract words, which is the style of the
+  "flat" calibration texts. The rambling take used shorter words than even the vivid ones.
+- Removing the fillers from the rambling take raised its rank to 82, so fillers lower the score;
+  the short, concrete words underneath are what the model responds to.
+
+So the raw score runs against the things the speaking score rewards (vocabulary and structure).
+For that reason the app no longer shows a brain number out of 100. It shows where the wording
+sits on a meter from formal to plain and vivid: the mean of the raw-score and vividness ranks,
+labelled formal below 34, balanced from 34 to 66, and vivid from 67.
 
 ## Not run
 

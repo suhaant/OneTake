@@ -3,41 +3,46 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import BrainView from './BrainView';
 import { Gloss } from './Glass';
-import { fetchNeuro, Neuro, NeuroRank, neuroViewerUrl } from '../backend';
+import { fetchNeuro, Neuro, neuroViewerUrl } from '../backend';
 import { colors, fonts, gradients } from '../theme';
-
-/** Each brain network in listener terms: what it means when it lights up. */
-const NETWORKS: Record<string, { label: string; feels: string }> = {
-  language: { label: 'Language', feels: 'Following your words' },
-  social: { label: 'Social', feels: 'Relating to you as a person' },
-  auditory: { label: 'Auditory', feels: 'Tuned in to your voice' },
-  default_mode: { label: 'Imagination', feels: 'Picturing what you describe' },
-};
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
-/** One plain sentence for the headline, from the overall response percentile. */
-function verdict(p: number): { title: string; body: string } {
-  if (p >= 80) return { title: 'Your audience is hooked.', body: `Your words light up a listener's brain more than ${p}% of speakers. They are leaning in.` };
-  if (p >= 60) return { title: 'Your audience is with you.', body: `A listener's brain responds more to your words than to ${p}% of speakers. Solid pull.` };
-  if (p >= 40) return { title: 'Your audience is listening, not feeling.', body: `Your words land about average: a stronger response than ${p}% of speakers. More concrete detail would turn the volume up.` };
-  return { title: 'Your audience is drifting.', body: `Only ${p}% of speakers get a weaker response. Swap abstract words for things a listener can see and hear.` };
+/**
+ * Where the take's wording sits between formal, abstract language (0) and plain, vivid language (100):
+ * the mean of its two ranks against the reference texts. This is what the predicted response tracks
+ * (neuro/ANALYSIS.md). It is not a quality grade: well-structured formal answers sit toward the left.
+ */
+const wordingPosition = (k: NonNullable<Neuro['ranking']>) => Math.round((k.raw_score.percentile + k.vividness_score.percentile) / 2);
+
+function wording(p: number): { title: string; body: string } {
+  if (p >= 67) return { title: 'Plain, vivid wording', body: 'Short, concrete words like yours get the strongest predicted response. This says nothing about structure or delivery.' };
+  if (p >= 34) return { title: 'Balanced wording', body: 'A mix of formal and everyday words. The predicted response is about average.' };
+  return { title: 'Formal, abstract wording', body: 'Words like these get a quieter predicted response. That suits a structured argument; one concrete example would make it land harder.' };
 }
 
-const level = (p: number) => (p >= 75 ? 'Strong' : p >= 50 ? 'Good' : p >= 30 ? 'Mild' : 'Faint');
-const levelColor = (p: number) => (p >= 75 ? colors.greenText : p >= 50 ? colors.blue : p >= 30 ? colors.yellowDark : colors.muted);
-
-function Meter({ rank }: { rank: NeuroRank }) {
+/** A track from formal to vivid with a marker at the take's position. */
+function WordingMeter({ position }: { position: number }) {
+  const at = Math.min(Math.max(position, 3), 97);
   return (
-    <View style={styles.track}>
-      <LinearGradient colors={['#9FF1FF', '#3CCBF7', '#0E9BDC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.fill, { width: `${Math.max(rank.percentile, 3)}%` }]} />
+    <View style={{ marginTop: 16 }}>
+      <View style={styles.track}>
+        <LinearGradient colors={['#C9DDEA', '#8FD9F7', '#19A7E6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+      </View>
+      <View style={[styles.marker, { left: `${at}%` }]} />
+      <View style={styles.ends}>
+        <Text style={styles.end}>Formal</Text>
+        <Text style={styles.end}>Plain and vivid</Text>
+      </View>
     </View>
   );
 }
 
 /**
- * "What your audience feels": the fMRI response TRIBE v2 predicts for an average listener hearing this
- * take's words, said plainly. Display-only. Renders nothing when the backend has no neuro API.
+ * The fMRI response TRIBE v2 predicts for an average listener hearing this take's words: where the
+ * wording sits from formal to vivid, the strongest moment, and the 3D brain. Display-only, with no
+ * score, because the prediction tracks word style and not how good the speech was. Renders nothing
+ * when the backend has no neuro API.
  */
 export default function BrainResponse({ submissionId }: { submissionId?: string }) {
   const [neuro, setNeuro] = useState<Neuro>({ status: 'processing' });
@@ -54,66 +59,42 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
   if (!submissionId || neuro.status === 'disabled' || neuro.status === 'unavailable') return null;
 
   const k = neuro.ranking;
-  const v = k ? verdict(k.raw_score.percentile) : null;
+  const position = k ? wordingPosition(k) : 0;
+  const w = wording(position);
 
   return (
     <View>
       <View style={styles.hr} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={styles.section}>What your audience feels</Text>
+        <Text style={styles.section}>Your words on the brain</Text>
         <Text style={styles.sectionSub}>predicted · not scored</Text>
       </View>
 
-      {neuro.status === 'processing' || !k || !v ? (
+      {neuro.status === 'processing' || !k ? (
         <View style={styles.waiting}>
           <ActivityIndicator color={colors.blue} />
           <Text style={styles.waitingText}>Running your words through a listener&apos;s brain…</Text>
         </View>
       ) : (
         <>
-          {/* 1. the verdict */}
+          {/* 1. where the wording sits */}
           <View style={styles.verdict}>
             <LinearGradient colors={[...gradients.glassDeep]} style={StyleSheet.absoluteFill} />
             <Gloss height="48%" radius={22} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <View style={styles.big}>
-                <Text style={styles.bigNum}>{k.raw_score.percentile}</Text>
-                <Text style={styles.bigOf}>/100</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.verdictTitle}>{v.title}</Text>
-                <Text style={styles.verdictBody}>{v.body}</Text>
-              </View>
-            </View>
+            <Text style={styles.verdictTitle}>{w.title}</Text>
+            <Text style={styles.verdictBody}>{w.body}</Text>
+            <WordingMeter position={position} />
           </View>
 
-          {/* 2. what they feel, by network */}
-          <Text style={styles.subhead}>What is going on in their head</Text>
-          <View style={{ marginTop: 10, gap: 12 }}>
-            {Object.entries(k.networks).map(([name, n]) => {
-              const meta = NETWORKS[name] ?? { label: name, feels: name };
-              return (
-                <View key={name}>
-                  <View style={styles.feelRow}>
-                    <Text style={styles.feelText}>{meta.feels}</Text>
-                    <Text style={[styles.feelLevel, { color: levelColor(n.percentile) }]}>{level(n.percentile)}</Text>
-                  </View>
-                  <Meter rank={n} />
-                  <Text style={styles.feelSub}>{meta.label} network · more than {n.percentile}% of speakers</Text>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* 3. strongest moment */}
+          {/* 2. strongest moment */}
           {neuro.peak?.text ? (
             <View style={styles.peak}>
-              <Text style={styles.peakWhen}>Biggest reaction at {clock(neuro.peak.t)}</Text>
+              <Text style={styles.peakWhen}>Strongest predicted response at {clock(neuro.peak.t)}</Text>
               <Text style={styles.peakText}>“{neuro.peak.text}”</Text>
             </View>
           ) : null}
 
-          {/* 4. the brain itself */}
+          {/* 3. the brain itself */}
           <Text style={styles.subhead}>See it on the brain</Text>
           <View style={styles.brain}>
             <BrainView url={neuroViewerUrl(submissionId)} />
@@ -121,8 +102,8 @@ export default function BrainResponse({ submissionId }: { submissionId?: string 
           <Text style={styles.caption}>Drag to turn. Brighter means a stronger predicted response.</Text>
 
           <Text style={styles.note}>
-            Predicted by Meta&apos;s TRIBE v2 for an average listener, from your words alone. Vividness score: ahead of {k.vividness_score.beats_vivid_texts}% of
-            vivid reference texts. Not a scan of anyone, and not part of your score.
+            Predicted by Meta&apos;s TRIBE v2 for an average listener, from your words alone. The meter compares your wording with 50 reference texts,
+            from formal to vivid. It is not a scan of anyone, not a measure of how engaged an audience was, and not part of your score.
           </Text>
         </>
       )}
@@ -137,18 +118,13 @@ const styles = StyleSheet.create({
   waiting: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   waitingText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.text2 },
   verdict: { marginTop: 14, padding: 16, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.95)', backgroundColor: '#CDEFFF', overflow: 'hidden' },
-  big: { flexDirection: 'row', alignItems: 'baseline' },
-  bigNum: { fontFamily: fonts.display, fontSize: 44, lineHeight: 48, color: colors.navy, letterSpacing: -1.5 },
-  bigOf: { fontFamily: fonts.semi, fontSize: 13, color: colors.text2 },
   verdictTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 22, color: colors.navy },
   verdictBody: { marginTop: 4, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19, color: colors.text2 },
   subhead: { marginTop: 24, fontFamily: fonts.bold, fontSize: 16, color: colors.navy },
-  feelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  feelText: { fontFamily: fonts.semi, fontSize: 15, color: colors.navy },
-  feelLevel: { fontFamily: fonts.bold, fontSize: 13 },
-  feelSub: { marginTop: 4, fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
-  track: { marginTop: 6, height: 8, borderRadius: 4, backgroundColor: '#E1EEF7', overflow: 'hidden' },
-  fill: { height: 8, borderRadius: 4 },
+  track: { height: 8, borderRadius: 4, backgroundColor: '#E1EEF7', overflow: 'hidden' },
+  marker: { position: 'absolute', top: -5, width: 18, height: 18, marginLeft: -9, borderRadius: 9, backgroundColor: '#fff', borderWidth: 4, borderColor: colors.blue },
+  ends: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between' },
+  end: { fontFamily: fonts.semi, fontSize: 12, color: colors.text2 },
   peak: { marginTop: 22, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: colors.blueLight },
   peakWhen: { fontFamily: fonts.semi, fontSize: 12, color: colors.muted },
   peakText: { marginTop: 2, fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, color: colors.navy },
