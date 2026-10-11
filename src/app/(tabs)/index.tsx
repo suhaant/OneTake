@@ -29,7 +29,7 @@ export default function Home() {
   // The envelope spins the day's prompt into view first; the reel hands off to the recorder.
   const openEnvelope = () => (done ? router.push('/results') : setSpinning(true));
   const todayScore = result?.score ?? me?.todayScore ?? null;
-  const dayNumber = totalTakes + (done ? 0 : 1);
+  const dayNumber = Math.max(1, totalTakes + (done ? 0 : 1));
 
   useFocusEffect(
     React.useCallback(() => {

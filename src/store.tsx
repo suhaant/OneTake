@@ -119,11 +119,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
+   * Loads the account saved on this device. Safe to call again: a server that was briefly down
+   * at startup (it restarts on every edit in development) must not leave the app signed out for
+   * the whole session, with streak 0 and an empty path.
+   */
+  const loadAccount = useCallback(async (): Promise<Me | null> => {
+    if (meRef.current) return meRef.current;
+    const userId = await AsyncStorage.getItem(USER_KEY);
+    if (!userId) return null;
+    try {
+      const account = await api.getUser(userId);
+      meRef.current = account;
+      setMe(account);
+      return account;
+    } catch (err) {
+      // The account is gone server-side (e.g. dev store restarted); start over.
+      if (err instanceof ApiError && err.code === 'not_found') await AsyncStorage.removeItem(USER_KEY);
+      return null;
+    }
+  }, []);
+
+  /**
    * Pulls everything the home and ranks screens show from the two services. Each part fails on its
    * own, so a backend that is down leaves the server-side numbers intact and vice versa.
    */
   const refreshStats = useCallback(async () => {
-    const account = meRef.current;
+    const account = meRef.current ?? (await loadAccount());
     const [history, board] = await Promise.all([
       account ? fetchHistory(account.userId, 60) : Promise.resolve([]),
       api.leaderboard('global', account?.userId, 100).catch(() => null),
@@ -151,23 +172,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSample(false);
       }
     }
-  }, []);
+  }, [loadAccount]);
 
   useEffect(() => {
     (async () => {
-      const userId = await AsyncStorage.getItem(USER_KEY);
-      if (!userId) return;
-      try {
-        const account = await api.getUser(userId);
-        meRef.current = account;
-        setMe(account);
-      } catch (err) {
-        // The account is gone server-side (e.g. dev store restarted); start over.
-        if (err instanceof ApiError && err.code === 'not_found') await AsyncStorage.removeItem(USER_KEY);
-      }
+      await loadAccount();
       await refreshStats();
     })().catch(() => {});
-  }, [refreshStats]);
+  }, [loadAccount, refreshStats]);
 
   const refreshMe = useCallback(async () => {
     const current = meRef.current;
@@ -176,7 +188,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Accounts start nameless so the first take has an owner; the name is asked for on the Friends tab. */
   const ensureAccount = useCallback(async () => {
-    if (meRef.current) return meRef.current;
+    const existing = await loadAccount();
+    if (existing) return existing;
     const created = await api.createUser('');
     await AsyncStorage.setItem(USER_KEY, created.userId);
     meRef.current = created;
@@ -187,7 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       api.acceptChallenge(pending, created.userId).catch(() => {});
     }
     return created;
-  }, []);
+  }, [loadAccount]);
 
   const saveName = useCallback(
     async (name: string) => {
