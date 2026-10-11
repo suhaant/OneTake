@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 
-export type Clip = 'sky' | 'bubbles' | 'river' | 'island';
+export type Clip = 'sky' | 'bubbles' | 'island';
 
 /**
  * Four-second cuts from the reference footage, slowed to 0.6x, cropped to portrait and silent, with
@@ -12,7 +12,6 @@ export type Clip = 'sky' | 'bubbles' | 'river' | 'island';
 const CLIPS: Record<Clip, number> = {
   sky: require('../../assets/video/sky.mp4'),
   bubbles: require('../../assets/video/bubbles.mp4'),
-  river: require('../../assets/video/river.mp4'),
   island: require('../../assets/video/island.mp4'),
 };
 
