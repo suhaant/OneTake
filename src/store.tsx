@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError, Me } from './api';
-import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, scoreTake } from './backend';
+import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, HistoryRow, scoreTake } from './backend';
 import { scheduleStreakReminder } from './notifications';
 import { mockResult, TakeResult, todaysPrompt } from './data/mock';
 
@@ -23,6 +23,8 @@ type State = {
   takers: number;
   /** the two most recent takes before today */
   pastTakes: PastTake[];
+  /** every scored take in the last 60 days, oldest first; feeds the progress chart */
+  history: HistoryRow[];
   /** every scored take so far, today included */
   totalTakes: number;
   /** true once today's take is scored, including takes scored before the app restarted */
@@ -73,6 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rank, setRank] = useState<number | null>(null);
   const [takers, setTakers] = useState(0);
   const [pastTakes, setPastTakes] = useState<PastTake[]>([]);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
   const [totalTakes, setTotalTakes] = useState(0);
   // Mirrors of state for the stable callbacks below.
   const meRef = useRef<Me | null>(null);
@@ -124,6 +127,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       api.leaderboard('global', account?.userId, 100).catch(() => null),
     ]);
     const today = new Date();
+    setHistory(history);
     setXp(Math.round(history.reduce((sum, h) => sum + h.overall, 0)));
     setTotalTakes(history.length);
     setPastTakes(
@@ -241,6 +245,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       rank: rank ?? result?.rank ?? null,
       takers,
       pastTakes,
+      history,
       totalTakes,
       doneToday: Boolean(result) || Boolean(me?.completedToday),
       result,
@@ -266,7 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshStats,
       acceptChallenge,
     }),
-    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, scoreGuess, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
+    [me, xp, rank, takers, pastTakes, history, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, scoreGuess, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

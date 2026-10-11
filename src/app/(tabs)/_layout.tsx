@@ -58,7 +58,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="ranks" options={{ title: 'Ranks' }} />
       <Tabs.Screen name="friends" options={{ title: 'Friends' }} />
-      <Tabs.Screen name="streak" options={{ title: 'Streak' }} />
+      <Tabs.Screen name="streak" options={{ title: 'Progress' }} />
       <Tabs.Screen name="you" options={{ title: 'You' }} />
     </Tabs>
   );

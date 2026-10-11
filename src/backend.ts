@@ -55,7 +55,17 @@ function toDetails(b: NonNullable<Submission['breakdown']>): TakeDetails {
   };
 }
 
-export type HistoryRow = { submission_id: string; time: string; overall: number };
+/** One scored take. The per-metric columns are null for audio-only takes and absent from older rows. */
+export type HistoryRow = {
+  submission_id: string;
+  time: string;
+  overall: number;
+  eye_contact?: number | null;
+  posture?: number | null;
+  body_language?: number | null;
+  fillers?: number | null;
+  language?: number | null;
+};
 
 async function getJson<T>(path: string): Promise<T> {
   let res: Response;
