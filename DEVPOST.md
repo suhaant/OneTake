@@ -17,14 +17,14 @@ OneTake is a daily speaking challenge with a panda coach.
 - **Scored in under a minute.** Eye contact, posture, gestures, fillers and language, each 0–100, rolled into one score.
 - **Told what to fix.** Not "be more confident" but "7 fillers in 135 words" and "you read off-screen for most of the middle".
 - **Ranked against everyone who took today's prompt.** The board resets daily; streaks and a shareable score card bring you back.
-- **Friends who text back.** Dare a contact from your own number. If they score before you do, the panda texts you over iMessage. At 9 pm, if your streak is about to die, so does he.
+- **Friends who text back.** Dare a contact from your own number. If they score before you do, the panda sends you a push notification. At 9 pm, if your streak is about to die, so does he.
 - **Your brain on your words.** Optional: a 3D brain showing the response Meta's TRIBE v2 model predicts for the language you used, ranked against 100 calibration texts.
 
 ## How we built it
 
 **Scoring (FastAPI + Gemini).** The video is transcribed verbatim with word timestamps. Gemini then rates only observable behaviors on 1–5 rubrics: eye contact toward the lens, posture, hand gestures (from the video); vocabulary and sentence structure (from the transcript). It also counts contextual fillers ("like", "you know", restarts) that a regex can't catch; a regex handles the unambiguous ums and uhs. Each rating maps to 0–100 and the overall score is a weighted mean: eye contact 25%, language 25%, fillers 20%, posture 15%, gestures 15%. Takes under 30 words are scaled down so silence can't score. Everything is stored in TigerData: one row per submission plus a `score_events` hypertable, so progress charts are a `time_bucket` query.
 
-**The coach (Node + Photon).** A second service owns accounts, friends and texting. Challenges are sent by the user from their own number (the app prefills Messages); the coach's own texts go over iMessage through Photon, only to people who opted in by texting him first, never after they've done today's take, and at most twice a day. His replies are Gemini with a strict rule: every number comes from the database, never invented. Three personas: mentor, drill sergeant, hype.
+**The coach (Node + Expo push).** A second service owns accounts, friends and notifications. Challenges are sent by the user from their own number (the app prefills Messages); the coach's own nudges are push notifications, only to people who turned them on, never after they've done today's take, and at most twice a day. He writes them with Gemini under a strict rule: every number comes from the database, never invented. Three personas: mentor, drill sergeant, hype.
 
 **The brain (Modal + TRIBE v2).** Word timings go to a GPU service running TRIBE v2, which predicts an fMRI response on the fsaverage5 surface. The app renders it in three.js and ranks the response against 100 calibration texts. It runs in a side thread and never delays or changes the score.
 
@@ -66,5 +66,5 @@ OneTake is a daily speaking challenge with a panda coach.
 
 - Scores are rubric ratings from Gemini, not precision measurements, and the weights are expert priors, not yet fitted to real users.
 - The brain response is not a validated measure of audience engagement, and TRIBE v2 is licensed non-commercial.
-- Coach texts are iMessage-only through Photon's shared line pool and need a public webhook URL to receive replies.
+- Coach nudges are one-way push notifications; there is no conversation with the coach yet.
 - Everything runs server-side; nothing is on-device yet.

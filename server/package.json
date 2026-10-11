@@ -11,10 +11,8 @@
   "dependencies": {
     "@google/genai": "^2.28.0",
     "@hono/node-server": "^2.1.4",
-    "@spectrum-ts/hono": "^12.10.1",
     "hono": "^4.13.13",
-    "pg": "^8.23.1",
-    "spectrum-ts": "^12.10.1"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

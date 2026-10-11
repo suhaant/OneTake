@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Hind_400Regular, Hind_500Medium, Hind_600SemiBold, Hind_700Bold } from '@expo-google-fonts/hind';
 import { Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
 import { AppProvider } from '../store';
+import { configureNotifications } from '../notifications';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -21,6 +23,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
+
+  useEffect(() => {
+    // A tapped notification carries an onetake:// link; challenge links (onetake://c/<id>) route normally.
+    configureNotifications((url) => {
+      Linking.openURL(url).catch(() => {});
+    });
+  }, []);
 
   if (!loaded) return null;
 

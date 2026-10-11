@@ -2,9 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError, Me } from './api';
 import { BackendUnreachable, fetchDailyPrompt, fetchHistory, fetchTakeResult, scoreTake } from './backend';
+import { scheduleStreakReminder } from './notifications';
 import { mockResult, TakeResult, todaysPrompt } from './data/mock';
 
 const USER_KEY = 'onetake.userId';
+const NOTIFY_KEY = 'onetake.notifications';
 const PENDING_CHALLENGE_KEY = 'onetake.pendingChallenge';
 
 /** A previous day's take, for the path on the home screen. */
@@ -42,6 +44,9 @@ type State = {
   /** opens the account if needed, then sets its display name */
   saveName: (name: string) => Promise<Me>;
   refreshMe: () => Promise<void>;
+  /** the user turned nudges on in the You tab (kept on this device) */
+  notificationsOn: boolean;
+  setNotificationsOn: (on: boolean) => void;
   /** re-reads streak, rank, history and today's result from the servers */
   refreshStats: () => Promise<void>;
   /** a friend's challenge link was opened; links the two accounts now or once an account exists */
@@ -58,6 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [sample, setSample] = useState(false);
   const [videoUri, setVideoUriState] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [notificationsOn, setNotificationsOnState] = useState(false);
   const [promptText, setPromptText] = useState(todaysPrompt.text);
   const [xp, setXp] = useState(0);
   const [rank, setRank] = useState<number | null>(null);
@@ -83,7 +89,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchDailyPrompt().then((text) => text && setPromptText(text));
+    AsyncStorage.getItem(NOTIFY_KEY).then((v) => v === '1' && setNotificationsOnState(true)).catch(() => {});
   }, []);
+
+  const setNotificationsOn = useCallback((on: boolean) => {
+    setNotificationsOnState(on);
+    AsyncStorage.setItem(NOTIFY_KEY, on ? '1' : '0').catch(() => {});
+  }, []);
+
+  // Keep the local 9pm reminder pointed at the next day that still needs a take.
+  const doneTodayNow = Boolean(result) || Boolean(me?.completedToday);
+  const streakNow = me?.streak ?? 0;
+  useEffect(() => {
+    scheduleStreakReminder(notificationsOn, doneTodayNow, streakNow);
+  }, [notificationsOn, doneTodayNow, streakNow]);
 
   const report = async (userId: string | undefined, r: TakeResult) => {
     // Best effort: the take is already on screen, and a missed report only delays friends' texts.
@@ -235,10 +254,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setMe,
       saveName,
       refreshMe,
+      notificationsOn,
+      setNotificationsOn,
       refreshStats,
       acceptChallenge,
     }),
-    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge],
+    [me, xp, rank, takers, pastTakes, totalTakes, result, sample, videoUri, setVideoUri, promptText, analyze, saveName, refreshMe, refreshStats, acceptChallenge, notificationsOn, setNotificationsOn],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

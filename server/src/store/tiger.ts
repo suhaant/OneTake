@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { dailyPrompt } from '../prompt.ts';
 import { dayIn, safeTz, streakFromDays } from '../util.ts';
-import type { Challenge, CoachMessage, Friend, OptIn, Persona, Profile, Row, Store } from './types.ts';
+import type { Challenge, Friend, OptIn, Persona, Profile, Row, Store } from './types.ts';
 
 /**
  * Takes are written by the FastAPI backend (backend/app/store.py) into `submissions` and
@@ -13,13 +13,13 @@ import type { Challenge, CoachMessage, Friend, OptIn, Persona, Profile, Row, Sto
 const UNDEFINED_TABLE = '42P01';
 const USER_TZ = "coalesce((select tz from messaging_profiles where user_id = $1), 'UTC')";
 
-type ProfileRow = { user_id: string; name: string; phone: string | null; photon_user_id: string | null; opt_in: OptIn; persona: Persona; tz: string };
+type ProfileRow = { user_id: string; name: string; phone: string | null; push_token: string | null; opt_in: OptIn; persona: Persona; tz: string };
 
 const toProfile = (r: ProfileRow): Profile => ({
   userId: r.user_id,
   name: r.name,
   phone: r.phone,
-  photonUserId: r.photon_user_id,
+  pushToken: r.push_token,
   optIn: r.opt_in,
   persona: r.persona,
   tz: r.tz,
@@ -28,7 +28,7 @@ const toProfile = (r: ProfileRow): Profile => ({
 const PROFILE_COLUMNS: Record<keyof Omit<Profile, 'userId'>, string> = {
   name: 'name',
   phone: 'phone',
-  photonUserId: 'photon_user_id',
+  pushToken: 'push_token',
   optIn: 'opt_in',
   persona: 'persona',
   tz: 'tz',
@@ -210,13 +210,6 @@ export function tigerStore(connectionString: string): Store {
       return Number(r.n);
     },
 
-    async appendMessage(userId, role, body) {
-      await q('insert into coach_messages (user_id, role, body) values ($1, $2, $3)', [userId, role, body]);
-    },
-    async recentMessages(userId, limit) {
-      const rows = await q('select role, body, created_at from coach_messages where user_id = $1 order by created_at desc, id desc limit $2', [userId, limit]);
-      return rows.reverse().map((r) => ({ role: r.role as CoachMessage['role'], body: String(r.body), at: new Date(r.created_at as string).toISOString() }));
-    },
   };
   return store;
 }

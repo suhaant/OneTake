@@ -11,10 +11,10 @@ const VOICES: Record<Persona, string> = {
   hype: 'a hype friend. High energy, playful, genuinely excited for them.',
 };
 
-const RULES = `You are the OneTake coach, texting one user over iMessage.
+const RULES = `You are the OneTake coach, writing one push notification to one user.
 OneTake: everyone gets the same speaking prompt each day and records one 30-second take, which is scored 0-100.
 Rules:
-- Plain text only, like a real text message. No markdown, no lists, no emoji spam. Under 300 characters unless they ask for detail.
+- Plain text only, like a short text message. No markdown, no lists, no emoji spam. Under 180 characters so it fits a notification.
 - Use only facts from the DATA block. If something is not there, say you do not have it. Never invent scores, names or stats.
 - One take per day. There are no retakes, rematches or head-to-head duels, so never offer them.
 - If they have not done today's take, you may encourage them to. If they have, do not push them to record again today.
@@ -70,19 +70,6 @@ async function generate(profile: Profile, task: string, contents: string): Promi
   }
 }
 
-/** Reply to a text the user sent the coach. */
-export async function coachReply(profile: Profile, inbound: string): Promise<string> {
-  const past = await store.recentMessages(profile.userId, 12);
-  const transcript = [...past.map((m) => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.body}`), `User: ${inbound}`, 'Coach:'].join('\n');
-  const reply = await generate(profile, 'Task: reply to the last user message in the conversation.', transcript);
-  if (reply) return reply;
-
-  const ctx = await userContext(profile);
-  return ctx.today.completed
-    ? `You scored ${ctx.today.score} today and your streak is ${ctx.streakDays}. See you tomorrow.`
-    : `Today's prompt: "${ctx.today.prompt}" Your streak is ${ctx.streakDays}. 30 seconds, one take.`;
-}
-
 export type Nudge =
   | { kind: 'friend_scored'; friendName: string; friendScore: number; link: string }
   | { kind: 'streak_saver'; streak: number; link: string };
@@ -92,13 +79,13 @@ export async function composeNudge(profile: Profile, nudge: Nudge): Promise<stri
   const me = firstName(profile.name);
   const template =
     nudge.kind === 'friend_scored'
-      ? `${me}, ${firstName(nudge.friendName)} just scored ${nudge.friendScore} on today's OneTake and you haven't taken yours yet. 30 seconds: ${nudge.link}`
-      : `${me}, your ${nudge.streak}-day streak ends at midnight. One 30-second take keeps it alive: ${nudge.link}`;
+      ? `${me}, ${firstName(nudge.friendName)} just scored ${nudge.friendScore} on today's OneTake and you haven't taken yours yet. 30 seconds.`
+      : `${me}, your ${nudge.streak}-day streak ends at midnight. One 30-second take keeps it alive.`;
 
   const written = await generate(
     profile,
-    `Task: write one text nudging the user to do today's take. Keep every fact and the exact link from this draft, and make it sound like you: "${template}" You may add one specific tip from their recent takes.`,
+    `Task: write one push notification nudging the user to do today's take. Keep every fact from this draft and make it sound like you: "${template}" You may add one specific tip from their recent takes. Do not include any link or URL.`,
     'Write the text.',
   );
-  return written && written.includes(nudge.link) ? written : template;
+  return written && !/https?:\/\//i.test(written) ? written : template;
 }

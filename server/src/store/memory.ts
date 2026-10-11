@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dailyPrompt } from '../prompt.ts';
 import { dayIn, streakFromDays } from '../util.ts';
-import type { BoardEntry, Challenge, CoachMessage, Friend, Profile, Row, Store } from './types.ts';
+import type { BoardEntry, Challenge, Friend, Profile, Row, Store } from './types.ts';
 
 type Edge = { userId: string; phone: string; name: string; friendUserId: string | null };
 
@@ -12,13 +12,12 @@ export function memoryStore(): Store {
   const edges: Edge[] = [];
   const challenges = new Map<string, Challenge>();
   const notifications = new Map<string, string>();
-  const messages = new Map<string, CoachMessage[]>();
 
   const byPhone = (phone: string) => [...profiles.values()].find((p) => p.phone === phone) ?? null;
 
   return {
     async createUser(name, tz) {
-      const p: Profile = { userId: randomUUID(), name, phone: null, photonUserId: null, optIn: 'none', persona: 'mentor', tz };
+      const p: Profile = { userId: randomUUID(), name, phone: null, pushToken: null, optIn: 'none', persona: 'mentor', tz };
       profiles.set(p.userId, p);
       return p;
     },
@@ -118,13 +117,5 @@ export function memoryStore(): Store {
       return [...notifications.keys()].filter((k) => k.startsWith(`${userId}|`) && k.endsWith(`|${day}`)).length;
     },
 
-    async appendMessage(userId, role, body) {
-      const list = messages.get(userId) ?? [];
-      list.push({ role, body, at: new Date().toISOString() });
-      messages.set(userId, list);
-    },
-    async recentMessages(userId, limit) {
-      return (messages.get(userId) ?? []).slice(-limit);
-    },
   };
 }

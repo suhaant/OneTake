@@ -8,7 +8,7 @@ Three processes, one database:
 | --- | --- | --- | --- |
 | `/` (app) | Expo + Expo Router | 8081 | Record the take, show scores, leaderboard, friends, share card |
 | `backend/` | FastAPI + Gemini | 8000 | Transcribe, evaluate and score the recording; writes `submissions` and `score_events` |
-| `server/` | Node (Hono) + Photon | 8787 | Accounts, friends, challenges, today's leaderboard, coach texts over iMessage |
+| `server/` | Node (Hono) + Expo push | 8787 | Accounts, friends, challenges, today's leaderboard, coach push notifications |
 
 ## Run it (dev)
 
@@ -36,7 +36,7 @@ For the **Brain response** section on the results screen (a 3D brain showing the
 cd server && npm install && npm run dev
 ```
 
-With an empty `server/.env` it runs fully local: in-memory store, coach texts logged instead of sent. See `server/README.md` to turn on Photon and TigerData.
+With an empty `server/.env` it runs fully local: in-memory store, template notifications. See `server/README.md` for TigerData and how push works.
 
 **3. App**
 
@@ -56,7 +56,7 @@ The first `npm install` in a clone turns on the git hooks in `.githooks/`. From 
 
 1. App opens an account on the server (`POST /users`) before the first take, so the take has an owner.
 2. App uploads the video to the backend (`POST /api/submissions` with `user_id`) and polls until scored. If the backend is unreachable the app shows the built-in sample result and says so in the console.
-3. App reports the score to the server (`POST /users/:id/attempts`), which texts friends who haven't taken today's prompt.
+3. App reports the score to the server (`POST /users/:id/attempts`), which sends a push notification to friends who haven't taken today's prompt.
 4. Home, Ranks and Share read live data: streak and `completedToday` from the server, history/XP from the backend (`/api/users/:id/progress`), today's board from the server (`GET /leaderboard`), which joins the backend's `score_events` with its own profile names.
 5. After a restart, today's result is reloaded from the backend instead of showing the sample.
 6. Once the transcript exists, the backend sends its word timings to the neuro API (`neuro/`) in a side thread. The results screen polls `GET /api/submissions/:id/neuro` and embeds the 3D viewer the backend serves at `/neuro/viewer/`. This is display-only and never enters the score.

@@ -1,28 +1,36 @@
 import { composeNudge, type Nudge } from './agent.ts';
 import { config } from './config.ts';
-import { sendText } from './photon.ts';
+import { sendPush } from './push.ts';
 import { store, type Profile } from './store/index.ts';
 import { dayIn, hourIn } from './util.ts';
 
-const openLink = () => `${config.publicUrl}/open`;
+/** Deep link the app handles; a push tap opens it directly, so no public URL is involved. */
+const openLink = () => 'onetake://';
+
+const TITLES: Record<Nudge['kind'], string> = { friend_scored: 'A friend just posted a score', streak_saver: 'Your streak ends tonight' };
 
 /**
- * Sends one coach-initiated text, but only to users who opted in, have not taken today's
- * prompt, and are under the daily cap. Returns whether a text went out.
+ * Sends one coach-initiated push, but only to users who turned notifications on, have not taken
+ * today's prompt, and are under the daily cap. Returns whether a notification went out.
  */
 async function nudge(profile: Profile, subject: string, n: Nudge): Promise<boolean> {
-  if (profile.optIn !== 'active' || !profile.phone) return false;
+  if (profile.optIn !== 'active' || !profile.pushToken) return false;
   if (await store.todaysAttempt(profile.userId)) return false;
 
   const day = dayIn(profile.tz);
   if ((await store.notificationCount(profile.userId, day)) >= config.maxNudgesPerDay) return false;
 
   const body = await composeNudge(profile, n);
-  // Logged before sending: a crash between the two drops one text rather than sending it twice.
+  // Logged before sending: a crash between the two drops one notification rather than sending it twice.
   if (!(await store.logNotification(profile.userId, n.kind, subject, day, body))) return false;
 
-  await sendText(profile.phone, body);
-  await store.appendMessage(profile.userId, 'coach', body);
+  const sent = await sendPush(profile.pushToken, { title: TITLES[n.kind], body, data: { url: n.link, kind: n.kind } });
+  if (!sent.ok) {
+    console.warn(`[push] ${n.kind} to ${profile.userId} failed: ${sent.error}`);
+    // The app was uninstalled or the token rotated: stop trying until they turn it on again.
+    if (sent.unregistered) await store.updateProfile(profile.userId, { pushToken: null, optIn: 'none' });
+    return false;
+  }
   return true;
 }
 
@@ -46,7 +54,7 @@ export async function onAttemptCompleted(userId: string, score: number): Promise
   return { notified };
 }
 
-/** Texts users whose streak is alive but who have not taken today's prompt, once it is evening where they are. */
+/** Notifies users whose streak is alive but who have not taken today's prompt, once it is evening where they are. */
 export async function runStreakSaver(now: Date = new Date()): Promise<{ notified: number }> {
   let notified = 0;
   for (const profile of await store.activeProfiles()) {

@@ -2,16 +2,14 @@ import { timingSafeEqual } from 'node:crypto';
 import { serve } from '@hono/node-server';
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
-import { coachReply } from './agent.ts';
 import { acceptChallenge, createChallenge } from './challenges.ts';
-import { config, photonEnabled } from './config.ts';
+import { config } from './config.ts';
 import { onAttemptCompleted, runStreakSaver } from './notifications.ts';
-import { optInLink, registerPhotonUser, spectrum } from './photon.ts';
+import { isExpoPushToken } from './push.ts';
 import { store, type Persona, type Profile } from './store/index.ts';
-import { firstName, safeTz, toE164 } from './util.ts';
+import { safeTz, toE164 } from './util.ts';
 
 const PERSONAS: Persona[] = ['mentor', 'drill', 'hype'];
-const OPT_IN_TEXT = 'Turn on my OneTake coach';
 
 const server = new Hono();
 server.use('*', cors());
@@ -33,10 +31,10 @@ function internalOnly(c: Context): Response | null {
 
 async function publicProfile(p: Profile) {
   const [attempt, streak] = await Promise.all([store.todaysAttempt(p.userId), store.streak(p.userId, p.tz)]);
-  return { userId: p.userId, name: p.name, phone: p.phone, optIn: p.optIn, persona: p.persona, completedToday: Boolean(attempt), todayScore: attempt?.score ?? null, streak };
+  return { userId: p.userId, name: p.name, phone: p.phone, optIn: p.optIn, pushEnabled: p.optIn === 'active' && Boolean(p.pushToken), persona: p.persona, completedToday: Boolean(attempt), todayScore: attempt?.score ?? null, streak };
 }
 
-server.get('/health', (c) => c.json({ ok: true, photon: photonEnabled, store: config.databaseUrl ? 'tiger' : 'memory' }));
+server.get('/health', (c) => c.json({ ok: true, push: 'expo', store: config.databaseUrl ? 'tiger' : 'memory' }));
 
 // ---- users -----------------------------------------------------------------
 
@@ -57,32 +55,32 @@ server.patch('/users/:id', async (c) => {
   if (str(b.name)) patch.name = str(b.name);
   if (str(b.tz)) patch.tz = safeTz(str(b.tz));
   if (PERSONAS.includes(b.persona as Persona)) patch.persona = b.persona as Persona;
+  if (typeof b.phone === 'string') {
+    // Optional: lets friends' challenges link to this account. Empty string clears it.
+    const phone = str(b.phone) ? toE164(str(b.phone)) : null;
+    if (str(b.phone) && !phone) return c.json({ error: 'invalid_phone' }, 400);
+    const owner = phone ? await store.getProfileByPhone(phone) : null;
+    if (owner && owner.userId !== c.req.param('id')) return c.json({ error: 'phone_in_use' }, 409);
+    patch.phone = phone;
+  }
   const p = await store.updateProfile(c.req.param('id'), patch);
   return p ? c.json(await publicProfile(p)) : c.json({ error: 'not_found' }, 404);
 });
 
-/**
- * Step one of coach opt-in: register the number with Photon and hand back a link that opens
- * Messages with a prefilled text. Texting stays off until that first text arrives (see the
- * webhook), which is both the consent record and proof that the number is theirs.
- */
-server.post('/users/:id/coach/opt-in', async (c) => {
+// ---- push notifications ------------------------------------------------------
+
+/** The app sends its Expo push token after the user allows notifications. Turning them on again after a STOP is the same call. */
+server.post('/users/:id/push-token', async (c) => {
   const p = await store.getProfile(c.req.param('id'));
   if (!p) return c.json({ error: 'not_found' }, 404);
-  const phone = toE164(str((await body(c)).phone));
-  if (!phone) return c.json({ error: 'invalid_phone' }, 400);
-  const owner = await store.getProfileByPhone(phone);
-  if (owner && owner.userId !== p.userId) return c.json({ error: 'phone_in_use' }, 409);
-
-  const photonUser = await registerPhotonUser(phone, firstName(p.name));
-  // Without Photon credentials there is no inbound text to wait for, so dev mode activates directly.
-  const optIn = photonEnabled ? (p.phone === phone && p.optIn === 'active' ? 'active' : 'pending') : 'active';
-  const updated = await store.updateProfile(p.userId, { phone, photonUserId: photonUser.id, optIn });
-  return c.json({ ...(await publicProfile(updated!)), confirmUrl: optInLink(photonUser.id, OPT_IN_TEXT) });
+  const token = str((await body(c)).token, 200);
+  if (!isExpoPushToken(token)) return c.json({ error: 'invalid_token' }, 400);
+  const updated = await store.updateProfile(p.userId, { pushToken: token, optIn: 'active' });
+  return c.json(await publicProfile(updated!));
 });
 
-server.post('/users/:id/coach/opt-out', async (c) => {
-  const p = await store.updateProfile(c.req.param('id'), { optIn: 'stopped' });
+server.delete('/users/:id/push-token', async (c) => {
+  const p = await store.updateProfile(c.req.param('id'), { pushToken: null, optIn: 'stopped' });
   return p ? c.json(await publicProfile(p)) : c.json({ error: 'not_found' }, 404);
 });
 
@@ -199,41 +197,8 @@ server.post('/events/attempt-completed', async (c) => {
 
 server.post('/cron/streak-saver', async (c) => internalOnly(c) ?? c.json(await runStreakSaver()));
 
-// ---- inbound texts ---------------------------------------------------------
-
-server.post('/spectrum/webhook', async (c) => {
-  const app = await spectrum();
-  if (!app) return c.json({ error: 'photon_not_configured' }, 503);
-  return app.webhook(c.req.raw, async (space, message) => {
-    if (message.direction !== 'inbound' || message.content.type !== 'text' || !message.sender) return;
-    const phone = toE164(message.sender.id);
-    const profile = phone ? await store.getProfileByPhone(phone) : null;
-    if (!profile) return;
-    const said = message.content.text.trim();
-
-    if (/^(stop|unsubscribe|quit)$/i.test(said)) {
-      await store.updateProfile(profile.userId, { optIn: 'stopped' });
-      await space.send("Done. I won't text you again. Turn me back on any time from the You tab.");
-      return;
-    }
-    // After STOP only an explicit START (or opting in again from the app) turns texting back on.
-    if (profile.optIn === 'stopped' && !/^start$/i.test(said)) return;
-    if (profile.optIn !== 'active') {
-      // Their first text is the opt-in.
-      await store.updateProfile(profile.userId, { optIn: 'active' });
-      await space.send(`You're in, ${firstName(profile.name)}. I'll text when a friend posts a score before you do, and when your streak is about to end. Ask me anything about your takes. Reply STOP to turn me off.`);
-      return;
-    }
-
-    await store.appendMessage(profile.userId, 'user', said);
-    const reply = await coachReply(profile, said);
-    await space.send(reply);
-    await store.appendMessage(profile.userId, 'coach', reply);
-  });
-});
-
 serve({ fetch: server.fetch, port: config.port }, ({ port }) => {
-  console.log(`onetake server on :${port} | photon ${photonEnabled ? 'live' : 'dry-run'} | store ${config.databaseUrl ? 'tiger' : 'memory'} | coach ${config.gemini.apiKey ? config.gemini.model : 'templates'}`);
+  console.log(`onetake server on :${port} | push expo | store ${config.databaseUrl ? 'tiger' : 'memory'} | coach ${config.gemini.apiKey ? config.gemini.model : 'templates'}`);
 });
 
 if (config.enableCron) {

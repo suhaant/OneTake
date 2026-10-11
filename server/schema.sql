@@ -5,12 +5,15 @@ create table if not exists messaging_profiles (
   user_id        text primary key,
   name           text not null,
   phone          text unique,
-  photon_user_id text,
+  push_token     text,
   opt_in         text not null default 'none' check (opt_in in ('none', 'pending', 'active', 'stopped')),
   persona        text not null default 'mentor' check (persona in ('mentor', 'drill', 'hype')),
   tz             text not null default 'UTC',
   created_at     timestamptz not null default now()
 );
+-- Databases created before push notifications replaced Photon texts.
+alter table messaging_profiles add column if not exists push_token text;
+update messaging_profiles set opt_in = 'none' where opt_in = 'pending';
 
 create table if not exists friend_edges (
   user_id        text not null,
@@ -43,12 +46,3 @@ create table if not exists notification_log (
   created_at timestamptz not null default now(),
   primary key (user_id, kind, subject, day)
 );
-
-create table if not exists coach_messages (
-  id         bigint generated always as identity primary key,
-  user_id    text not null,
-  role       text not null check (role in ('user', 'coach')),
-  body       text not null,
-  created_at timestamptz not null default now()
-);
-create index if not exists coach_messages_user on coach_messages (user_id, created_at desc);

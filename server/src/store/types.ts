@@ -1,13 +1,15 @@
 export type Persona = 'mentor' | 'drill' | 'hype';
 
-/** none: never asked. pending: registered with Photon, waiting for their first text. active: texting allowed. stopped: they said STOP. */
-export type OptIn = 'none' | 'pending' | 'active' | 'stopped';
+/** none: notifications never turned on (or the token died). active: push allowed. stopped: they turned it off. */
+export type OptIn = 'none' | 'active' | 'stopped';
 
 export type Profile = {
   userId: string;
   name: string;
+  /** Optional. Lets friends' challenges find this account and stops people challenging themselves. */
   phone: string | null;
-  photonUserId: string | null;
+  /** Expo push token from the app, present while notifications are on. */
+  pushToken: string | null;
   optIn: OptIn;
   persona: Persona;
   tz: string;
@@ -28,8 +30,6 @@ export type Challenge = {
   sentAt: string | null;
 };
 
-export type CoachMessage = { role: 'user' | 'coach'; body: string; at: string };
-
 /** One row of today's board: a user who has taken today's prompt. */
 export type BoardEntry = { userId: string; name: string; score: number };
 
@@ -41,6 +41,7 @@ export interface Store {
   getProfile(userId: string): Promise<Profile | null>;
   getProfileByPhone(phone: string): Promise<Profile | null>;
   updateProfile(userId: string, patch: Partial<Omit<Profile, 'userId'>>): Promise<Profile | null>;
+  /** Users with notifications on. */
   activeProfiles(): Promise<Profile[]>;
 
   todaysPrompt(): Promise<Prompt>;
@@ -68,7 +69,4 @@ export interface Store {
   /** Returns false when this exact notification was already logged for that day. */
   logNotification(userId: string, kind: string, subject: string, day: string, body: string): Promise<boolean>;
   notificationCount(userId: string, day: string): Promise<number>;
-
-  appendMessage(userId: string, role: CoachMessage['role'], body: string): Promise<void>;
-  recentMessages(userId: string, limit: number): Promise<CoachMessage[]>;
 }
