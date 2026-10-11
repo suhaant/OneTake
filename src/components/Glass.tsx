@@ -80,14 +80,14 @@ export function Chip({ text, tone = 'white' }: { text: string; tone?: 'white' | 
       : tone === 'blue'
         ? (['#F0FCFF', '#B9EEFF', '#7ADBFF'] as const)
         : tone === 'solidBlue'
-          ? (['#5FC9F8', '#2A9BE6', '#1878CF'] as const)
+          ? (['#2A8FE6', '#1E74D2', '#1A66C0'] as const)
           : (['#FFFFFF', '#F6FBFF', '#E6F4FB'] as const);
   const textColor = tone === 'green' ? colors.greenText : tone === 'blue' ? colors.blue : tone === 'solidBlue' ? '#FFFFFF' : '#7A4A00';
   const border = tone === 'green' ? '#8CD63D' : tone === 'blue' ? '#6ED2FB' : tone === 'solidBlue' ? '#FFFFFF' : '#D9EBF5';
   return (
     <View style={[styles.chip, { borderColor: border }]}>
       <LinearGradient colors={[...face]} style={StyleSheet.absoluteFill} />
-      <Gloss height="55%" radius={999} />
+      {tone !== 'solidBlue' && <Gloss height="55%" radius={999} />}
       <Text style={[styles.chipText, { color: textColor }, tone === 'solidBlue' && styles.chipTextOnBlue]}>{text}</Text>
     </View>
   );

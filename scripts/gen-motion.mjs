@@ -19,7 +19,8 @@ const MOTION = {
   island:
     ' The clouds travel steadily from the left edge of the frame all the way across to the right edge over the eight seconds, ' +
     'new clouds entering from the left as others leave on the right, a continuous flow across the whole sky. ' +
-    'The sun glow stays fixed, the grass ripples in long waves and the lake shimmers.',
+    'The sun glow stays fixed. A clear steady wind combs the grass: the tall foreground blades bend and swing visibly, ' +
+    'long waves roll across the whole hill, blade tips flick back and forth, dew glints as they move. The lake shimmers with ripples.',
   meadow: ' The grass blades sway gently, dew drops glint, no splashes, no falling water.',
 };
 
