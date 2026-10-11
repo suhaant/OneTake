@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Ellipse, Path, Rect, G } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Path, Rect, G, Defs, LinearGradient, RadialGradient, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,8 +38,37 @@ type Props = {
 const INK = '#1C1C1C';
 const PAD = '#F5955A';
 const BLUSH = '#F7A8B8';
-const PHONE = '#5BB8E8';
-const PHONE_LIGHT = '#8FD3F5';
+const PHONE = '#2FB4F5';
+const PHONE_EDGE = '#0A6DAE';
+const PHONE_GLOW = '#5FE3FF';
+const IRIS = '#2FA8F0';
+
+/** Gradients for the gel look; one copy per Svg so each layer can reach them. */
+function GelDefs() {
+  return (
+    <Defs>
+      <LinearGradient id="gelCup" x1="0" y1="0" x2="1" y2="1">
+        <Stop offset="0" stopColor="#BFF4FF" />
+        <Stop offset="0.45" stopColor="#3FC4F8" />
+        <Stop offset="1" stopColor="#0E8FD6" />
+      </LinearGradient>
+      <RadialGradient id="gelGlow" cx="50%" cy="50%" r="50%">
+        <Stop offset="0" stopColor={PHONE_GLOW} stopOpacity={0.6} />
+        <Stop offset="1" stopColor={PHONE_GLOW} stopOpacity={0} />
+      </RadialGradient>
+      <RadialGradient id="gelWhite" cx="38%" cy="30%" r="75%">
+        <Stop offset="0" stopColor="#FFFFFF" />
+        <Stop offset="0.7" stopColor="#F4FAFF" />
+        <Stop offset="1" stopColor="#D6E9F5" />
+      </RadialGradient>
+      <RadialGradient id="gelIris" cx="40%" cy="35%" r="65%">
+        <Stop offset="0" stopColor="#9FE4FF" />
+        <Stop offset="0.6" stopColor={IRIS} />
+        <Stop offset="1" stopColor="#0B5FA8" />
+      </RadialGradient>
+    </Defs>
+  );
+}
 const TONGUE = '#F08A9B';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -80,7 +109,9 @@ function Foot({ cx }: { cx: number }) {
   return (
     <>
       <Ellipse cx={cx} cy={236} rx={26} ry={20} fill={INK} />
+      <Ellipse cx={cx - 9} cy={226} rx={8} ry={4} fill="#fff" opacity={0.3} />
       <Ellipse cx={cx} cy={240} rx={12} ry={9} fill={PAD} />
+      <Ellipse cx={cx - 3} cy={237} rx={4} ry={2.5} fill="#fff" opacity={0.5} />
       <Circle cx={cx - 12} cy={227} r={4} fill={PAD} />
       <Circle cx={cx} cy={223} r={4} fill={PAD} />
       <Circle cx={cx + 12} cy={227} r={4} fill={PAD} />
@@ -113,6 +144,7 @@ function Arm({ side, rotation, thumb, size, height }: { side: 'left' | 'right'; 
     <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: `${(x / 220) * 100}% ${(y / 266) * 100}%` }, style]}>
       <Svg width={size} height={height} viewBox="0 0 220 266">
         <Ellipse cx={x} cy={y + 26} rx={15} ry={30} fill={INK} />
+        <Ellipse cx={x - 5} cy={y + 12} rx={4} ry={10} fill="#fff" opacity={0.28} />
         <Paw cx={x} cy={y + 52} />
         {thumb && <Rect x={x + 10} y={y + 42} width={9} height={22} rx={4.5} fill={INK} transform={`rotate(-100 ${x + 14} ${y + 53})`} />}
       </Svg>
@@ -154,15 +186,25 @@ function Head({ pose, mouth, blink }: { pose: PandaPose; mouth?: SharedValue<num
   const lidR = useAnimatedProps(() => ({ ry: 11.5 * blink.value }));
   return (
     <G transform={sad ? 'rotate(6 110 150)' : undefined}>
+      <GelDefs />
       <Circle cx={50} cy={44} r={24} fill={INK} />
       <Circle cx={170} cy={44} r={24} fill={INK} />
-      <Path d="M38 100 Q38 24 110 24 Q182 24 182 100" fill="none" stroke={INK} strokeWidth={11} strokeLinecap="round" />
-      <Path d="M38 100 Q38 24 110 24 Q182 24 182 100" fill="none" stroke="#4A4A4A" strokeWidth={4} strokeLinecap="round" />
-      <Ellipse cx={110} cy={100} rx={70} ry={64} fill="#fff" stroke={INK} strokeWidth={3.5} />
-      <Rect x={24} y={82} width={24} height={44} rx={9} fill={PHONE} stroke={INK} strokeWidth={3.5} />
-      <Rect x={30} y={90} width={8} height={28} rx={4} fill={PHONE_LIGHT} />
-      <Rect x={172} y={82} width={24} height={44} rx={9} fill={PHONE} stroke={INK} strokeWidth={3.5} />
-      <Rect x={178} y={90} width={8} height={28} rx={4} fill={PHONE_LIGHT} />
+      <Ellipse cx={42} cy={34} rx={9} ry={5} fill="#fff" opacity={0.35} transform="rotate(-30 42 34)" />
+      <Ellipse cx={162} cy={34} rx={9} ry={5} fill="#fff" opacity={0.35} transform="rotate(-30 162 34)" />
+      {/* headband: a glow, a translucent blue tube, a bright line of light along its top */}
+      <Path d="M38 100 Q38 24 110 24 Q182 24 182 100" fill="none" stroke={PHONE_GLOW} strokeOpacity={0.35} strokeWidth={20} strokeLinecap="round" />
+      <Path d="M38 100 Q38 24 110 24 Q182 24 182 100" fill="none" stroke={PHONE_EDGE} strokeWidth={13} strokeLinecap="round" />
+      <Path d="M38 100 Q38 24 110 24 Q182 24 182 100" fill="none" stroke={PHONE} strokeWidth={9} strokeLinecap="round" />
+      <Path d="M44 96 Q44 30 110 30 Q176 30 176 96" fill="none" stroke="#DFF9FF" strokeOpacity={0.9} strokeWidth={2.5} strokeLinecap="round" />
+      <Ellipse cx={110} cy={100} rx={70} ry={64} fill="url(#gelWhite)" stroke={INK} strokeWidth={3.5} />
+      <Ellipse cx={82} cy={58} rx={26} ry={11} fill="#fff" opacity={0.75} transform="rotate(-18 82 58)" />
+      {/* earcups: glow behind, gel body, a window of light */}
+      <Ellipse cx={36} cy={104} rx={22} ry={32} fill="url(#gelGlow)" />
+      <Ellipse cx={184} cy={104} rx={22} ry={32} fill="url(#gelGlow)" />
+      <Rect x={22} y={80} width={28} height={48} rx={11} fill="url(#gelCup)" stroke={PHONE_EDGE} strokeWidth={2.5} />
+      <Rect x={28} y={87} width={9} height={30} rx={4.5} fill="#E8FBFF" opacity={0.85} />
+      <Rect x={170} y={80} width={28} height={48} rx={11} fill="url(#gelCup)" stroke={PHONE_EDGE} strokeWidth={2.5} />
+      <Rect x={176} y={87} width={9} height={30} rx={4.5} fill="#E8FBFF" opacity={0.85} />
       <Ellipse cx={84} cy={102} rx={22} ry={27} fill={INK} transform="rotate(-14 84 102)" />
       <Ellipse cx={136} cy={102} rx={22} ry={27} fill={INK} transform="rotate(14 136 102)" />
       {happy ? (
@@ -174,8 +216,10 @@ function Head({ pose, mouth, blink }: { pose: PandaPose; mouth?: SharedValue<num
         <>
           <Circle cx={86} cy={102 + dy} r={10} fill="#fff" />
           <Circle cx={134} cy={102 + dy} r={10} fill="#fff" />
-          <Circle cx={87 + (think ? 1 : 0)} cy={103 + dy - (think ? 4 : 0)} r={6.5} fill={INK} />
-          <Circle cx={133 + (think ? 3 : 0)} cy={103 + dy - (think ? 4 : 0)} r={6.5} fill={INK} />
+          <Circle cx={87 + (think ? 1 : 0)} cy={103 + dy - (think ? 4 : 0)} r={8} fill="url(#gelIris)" />
+          <Circle cx={133 + (think ? 3 : 0)} cy={103 + dy - (think ? 4 : 0)} r={8} fill="url(#gelIris)" />
+          <Circle cx={87 + (think ? 1 : 0)} cy={103 + dy - (think ? 4 : 0)} r={4.8} fill={INK} />
+          <Circle cx={133 + (think ? 3 : 0)} cy={103 + dy - (think ? 4 : 0)} r={4.8} fill={INK} />
           <Circle cx={84 + (think ? 1 : 0)} cy={99 + dy - (think ? 4 : 0)} r={2.6} fill="#fff" />
           <Circle cx={130 + (think ? 3 : 0)} cy={99 + dy - (think ? 4 : 0)} r={2.6} fill="#fff" />
           {/* eyelids, the colour of the patches, close over the whites when he blinks */}
@@ -325,8 +369,10 @@ export default function Panda({ pose = 'idle', size = 180, headOnly = false, env
             <Ellipse cx={110} cy={258} rx={78} ry={8} fill="rgba(0,40,80,0.18)" />
             <Foot cx={70} />
             <Foot cx={150} />
-            <Ellipse cx={110} cy={198} rx={60} ry={52} fill="#fff" stroke={INK} strokeWidth={3.5} />
-            <Ellipse cx={110} cy={210} rx={38} ry={34} fill="#EEF0F2" />
+            <GelDefs />
+            <Ellipse cx={110} cy={198} rx={60} ry={52} fill="url(#gelWhite)" stroke={INK} strokeWidth={3.5} />
+            <Ellipse cx={110} cy={210} rx={38} ry={34} fill="#EEF3F7" />
+            <Ellipse cx={88} cy={168} rx={22} ry={9} fill="#fff" opacity={0.8} transform="rotate(-20 88 168)" />
           </Svg>
           <Arm side="left" rotation={armL} thumb={false} size={size} height={h} />
           {!chin && <Arm side="right" rotation={armR} thumb={thumb} size={size} height={h} />}

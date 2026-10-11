@@ -5,6 +5,7 @@ import AeroBackground from '../../components/AeroBackground';
 import ChunkyButton from '../../components/ChunkyButton';
 import Field from '../../components/Field';
 import Panda from '../../components/Panda';
+import Grass from '../../components/Grass';
 import { GlassCard, Gloss, SpeechBubble } from '../../components/Glass';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fonts, gradients, skyText } from '../../theme';
@@ -97,6 +98,7 @@ export default function YouTab() {
   return (
     <View style={{ flex: 1 }}>
       <AeroBackground hills={false} />
+      <Grass height={170} leaves={false} />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 120, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>You</Text>
         <View style={styles.pandaRow}>

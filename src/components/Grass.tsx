@@ -129,7 +129,7 @@ function Glint({ x, y, delay }: { x: number; y: number; delay: number }) {
 }
 
 /** A small leaf carried across the screen on a gust, tumbling as it goes. */
-function Leaf({ width, height, seed }: { width: number; height: number; seed: number }) {
+export function DriftingLeaf({ width, height, seed }: { width: number; height: number; seed: number }) {
   const p = useSharedValue(0);
   const dur = 9000 + noise(seed, 1) * 6000;
   const y0 = height * (0.1 + noise(seed, 2) * 0.45);
@@ -154,6 +154,25 @@ function Leaf({ width, height, seed }: { width: number; height: number; seed: nu
       <Svg width={size} height={size} viewBox="0 0 20 20">
         <Path d="M2 18 C 2 8, 10 2, 18 2 C 18 10, 12 18, 2 18 Z" fill="#8ED53E" stroke="#4FAE1E" strokeWidth={1} />
         <Path d="M3 17 L15 5" stroke="#E6FF9A" strokeWidth={1} strokeOpacity={0.8} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/** Wave lines sliding across the lake. The pattern repeats every quarter width, so the slide loops seamlessly. */
+function Waves({ width: w, height: h }: { width: number; height: number }) {
+  const x = useSharedValue(0);
+  const period = w * 0.5;
+  useEffect(() => {
+    x.value = withRepeat(withTiming(-period, { duration: 9000, easing: Easing.linear }), -1);
+  }, [x, period]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  return (
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+      <Svg width={w * 2} height={h}>
+        {[0.22, 0.3, 0.38, 0.47].map((fy, i) => (
+          <Path key={i} d={`M${-20 + i * 30} ${h * fy} q ${w * 0.12} -4 ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0`} fill="none" stroke="#fff" strokeOpacity={0.35 - i * 0.05} strokeWidth={1.2} />
+        ))}
       </Svg>
     </Animated.View>
   );
@@ -215,9 +234,6 @@ export default function Grass({ height = 280, water = false, leaves = true }: Pr
             {/* the lake: horizon at the top of the band, sun path down the middle, soft wave lines */}
             <Path d={`M0 ${h * 0.14} L ${w} ${h * 0.14} L ${w} ${h * 0.62} L 0 ${h * 0.62} Z`} fill="url(#lake)" />
             <Path d={`M${w * 0.3} ${h * 0.14} L ${w * 0.7} ${h * 0.14} L ${w * 0.85} ${h * 0.6} L ${w * 0.15} ${h * 0.6} Z`} fill="url(#lakeShine)" opacity={0.6} />
-            {[0.22, 0.3, 0.38, 0.47].map((fy, i) => (
-              <Path key={i} d={`M${-20 + i * 30} ${h * fy} q ${w * 0.12} -4 ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0 t ${w * 0.25} 0`} fill="none" stroke="#fff" strokeOpacity={0.35 - i * 0.05} strokeWidth={1.2} />
-            ))}
           </>
         )}
         {/* the hill: a soft ridge, higher on the left like the sun side of a slope */}
@@ -227,11 +243,12 @@ export default function Grass({ height = 280, water = false, leaves = true }: Pr
         <Path d={`M${-w * 0.1} ${h * 0.72} C ${w * 0.3} ${h * 0.66}, ${w * 0.6} ${h * 0.78}, ${w * 1.1} ${h * 0.7}`} fill="none" stroke="#7FB83A" strokeOpacity={0.55} strokeWidth={14} strokeLinecap="round" />
         <Path d={`M0 ${h * 0.8} L ${w} ${h * 0.8} L ${w} ${h} L 0 ${h} Z`} fill="url(#meadowShade)" />
       </Svg>
+      {water && <Waves width={w} height={h} />}
       {water && ripples.map((r, i) => <Ripple key={i} {...r} />)}
       {ROWS.map((row, i) => (
         <Row key={i} row={row} width={w} height={h} index={i} />
       ))}
-      {leaves && [0, 1, 2, 3].map((s) => <Leaf key={s} width={w} height={h} seed={s} />)}
+      {leaves && [0, 1, 2, 3].map((s) => <DriftingLeaf key={s} width={w} height={h} seed={s} />)}
     </View>
   );
 }

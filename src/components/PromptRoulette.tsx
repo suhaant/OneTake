@@ -82,7 +82,7 @@ function Reel({ prompt, takers, onDone }: { prompt: string; takers: number; onDo
 
   return (
       <View style={styles.root}>
-        <AeroBackground hills water bubbles={[{ x: 0.9, y: 0.16, r: 30 }, { x: 0.08, y: 0.7, r: 18 }]} />
+        <AeroBackground hills water leaves bubbles={[{ x: 0.9, y: 0.16, r: 30 }, { x: 0.08, y: 0.7, r: 18 }]} />
 
         <View style={styles.top}>
           <Text style={styles.eyebrow}>Drawing today&apos;s prompt</Text>
