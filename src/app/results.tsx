@@ -139,10 +139,10 @@ export default function Results() {
   }, [coach, r, me?.name]);
   const bubble =
     pose === 'celebrate'
-      ? 'Done. That was a strong take. Details below.'
+      ? 'Strong take. Details below.'
       : pose === 'console'
-        ? "Rough one. Here's the one thing to fix."
-        : 'Solid take. A couple of things to tighten up below.';
+        ? 'Rough one. One fix below.'
+        : 'Solid take. Two things below.';
 
   return (
     <View style={{ flex: 1 }}>
@@ -190,7 +190,7 @@ export default function Results() {
             {r.details?.delivery && <Bar label="Posture" weight="15%" value={r.details.delivery.posture} />}
             {r.details?.delivery && <Bar label="Gestures" weight="15%" value={r.details.delivery.gestures} />}
           </View>
-          {!r.details?.delivery && <Text style={styles.detailBody}>Audio-only take: eye contact, posture and gestures were not scored.</Text>}
+          {!r.details?.delivery && <Text style={styles.detailBody}>Audio only: eye contact, posture and gestures not scored.</Text>}
 
           {r.details && (
             <>

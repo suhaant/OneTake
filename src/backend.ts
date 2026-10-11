@@ -128,8 +128,8 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
   const good = [...(s.feedback.content_notes?.strengths ?? [s.feedback.strength]), ...(s.feedback.delivery_notes?.strengths ?? [])];
   const bad = [...(s.feedback.delivery_notes?.improvements ?? []), ...(s.feedback.content_notes?.weaknesses ?? [s.feedback.improvement])];
   const moments: Moment[] = [
-    ...good.slice(0, 2).map((body) => ({ t: 'Good', title: '', body, good: true })),
-    ...bad.slice(0, 2).map((body) => ({ t: 'Fix', title: '', body, good: false })),
+    ...good.slice(0, 1).map((body) => ({ t: 'Good', title: '', body, good: true })),
+    ...bad.slice(0, 1).map((body) => ({ t: 'Fix', title: '', body, good: false })),
   ];
   const also = [
     { label: 'Pace', value: `${Math.round(s.audio.wpm)} wpm` },
@@ -155,7 +155,8 @@ function toResult(s: Submission, place: { rank: number; total: number; delta: nu
     also,
     submissionId,
     details: s.breakdown ? toDetails(s.breakdown) : undefined,
-    suggestions: s.suggestions?.length ? s.suggestions : undefined,
+    // The focus body is suggestions[0] on the server, so it is not repeated here.
+    suggestions: s.suggestions?.length ? s.suggestions.filter((t) => t !== s.feedback.next_exercise).slice(0, 2) : undefined,
   };
 }
 

@@ -81,7 +81,7 @@ Ratings are decimals from 1.0 to 5.0 with one decimal place (e.g. 2.3, 3.7, 4.1)
 - posture: 1 slouched, hunched, or swaying, 3 mostly upright with some slumping or shifting, 5 upright, shoulders square and open, stable throughout.
 - body_language: hand gestures. 1 hands hidden, frozen, or fidgeting, 3 occasional gestures loosely tied to the words, 5 purposeful, varied gestures that reinforce key points.
 The video is already correctly oriented and framed the way the app intends (a phone held in front of the speaker). Never comment on or penalize camera orientation, camera angle, framing, distance from the lens, lighting, resolution, or video quality; treat all of those as given. If a body area is not visible, rate it 3.0 and say only that it was out of view, without advising on camera setup.
-Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead."""
+Do not infer personality, confidence, neurological state, identity, accent, or attractiveness. Strengths and improvements are about what the speaker does with their gaze, posture, and hands, with timestamps (m:ss) when possible, and each improvement says what to do instead. Keep each item to one sentence of at most 12 words, one or two items per list."""
     response = generate(
         settings.video_model, [uploaded_video, prompt],
         types.GenerateContentConfig(response_mime_type="application/json", response_schema=DeliveryEvaluation),
