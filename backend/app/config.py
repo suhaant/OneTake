@@ -23,7 +23,7 @@ class Settings:
     neuro_timeout_seconds: int = int(os.getenv("NEURO_TIMEOUT_SECONDS", "300"))
     # ElevenLabs (see app/voice.py). Leave the key unset to keep the panda silent.
     elevenlabs_api_key: str | None = os.getenv("ELEVENLABS_API_KEY") or None
-    elevenlabs_voice_id: str = os.getenv("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9")  # "Jessica - Playful, Bright, Warm": small, high and cute
+    elevenlabs_voice_id: str = os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")  # "George - Warm, Captivating Storyteller": British, male
     elevenlabs_model: str = os.getenv("ELEVENLABS_MODEL", "eleven_v3")  # v3 understands [excited]-style audio tags
     voice_dir: Path = Path(os.getenv("VOICE_DIR", "data/voice"))
 

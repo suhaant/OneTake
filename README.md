@@ -66,7 +66,7 @@ The first `npm install` in a clone turns on the git hooks in `.githooks/`. From 
 ## Demo helpers
 
 - **Reset today's take**: the tiny "Demo · reset my OneTake for today" link at the foot of the You tab deletes today's rows on both services (`DELETE /api/users/:id/today` on the backend, `DELETE /users/:id/attempts/today` on the server) so the envelope opens again.
-- **Seed a board and a week of history**: from `backend/`, `PYTHONPATH=. python scripts/seed_demo.py <your_user_id>` adds Ayan, Suhaan, Devesh, Noah and Colin to today's board with streaks, and seven slightly improving takes for you ending yesterday. Rows are tagged `demo-seed`; run again to refresh, `--remove` to clear.
+- **Seed a board and a week of history**: from `backend/`, `PYTHONPATH=. python scripts/seed_demo.py <your_user_id>` adds Ayan, Suhaan, Devesh, Noah and Colin to today's board with streaks, and six slightly improving takes for you ending yesterday, so today is day 7. Rows are tagged `demo-seed`; run again to refresh, `--remove` to clear.
 
 ## Checks
 

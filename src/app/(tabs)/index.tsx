@@ -76,22 +76,22 @@ export default function Home() {
         </Pressable>
       </View>
 
-      {/* path */}
-      <View style={[styles.path, { top: insets.top + 190 }]}>
+      {/* path: sits right under the banner so today's node and the panda land near the middle of the screen */}
+      <View style={[styles.path, { top: insets.top + 200 }]}>
         {/* the two takes before today; empty slots stay empty for a new user */}
         {pastTakes.length > 1 && (
-          <View style={{ position: 'absolute', left: 230 }}>
+          <View style={{ position: 'absolute', left: 236 }}>
             <DoneNode label={pastTakes[0].day} score={pastTakes[0].score} />
           </View>
         )}
         {pastTakes.length > 0 && (
-          <View style={{ position: 'absolute', left: 150, top: 90 }}>
+          <View style={{ position: 'absolute', left: 168, top: 56 }}>
             <DoneNode label={pastTakes[pastTakes.length - 1].day} score={pastTakes[pastTakes.length - 1].score} />
           </View>
         )}
 
         {/* today */}
-        <View style={{ position: 'absolute', left: 50, top: 200, width: 140, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', left: 50, top: 100, width: 140, alignItems: 'center' }}>
           <View>
             <View style={styles.openTag}>
               <LinearGradient colors={['#FFFFFF', '#F2FAFF', '#DFF2FB']} style={StyleSheet.absoluteFill} />
@@ -130,15 +130,15 @@ export default function Home() {
         </View>
 
         {/* panda beside the node */}
-        <Pressable onPress={openEnvelope} style={{ position: 'absolute', left: 196, top: 200 }}>
+        <Pressable onPress={openEnvelope} style={{ position: 'absolute', left: 210, top: 110 }}>
           <Panda pose="idle" size={180} envelope={!done} />
         </Pressable>
 
         {/* locked */}
-        <View style={{ position: 'absolute', left: 150, top: 418 }}>
+        <View style={{ position: 'absolute', left: 150, top: 328 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Tomorrow, locked" />
         </View>
-        <View style={{ position: 'absolute', left: 250, top: 452 }}>
+        <View style={{ position: 'absolute', left: 250, top: 362 }}>
           <ChunkyButton tone="locked" circle={74} depth={7} icon={<Lock size={30} />} accessibilityLabel="Locked" />
         </View>
       </View>

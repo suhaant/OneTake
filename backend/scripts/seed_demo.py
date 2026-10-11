@@ -2,7 +2,7 @@
 
 Run from backend/ against DATABASE_URL (TigerData):
 
-    python scripts/seed_demo.py <your_user_id> [--remove]
+    PYTHONPATH=. python scripts/seed_demo.py <your_user_id> [<another_user_id> ...] [--remove]
 
 Seeded rows carry scoring_version 'demo-seed', so running again replaces them and --remove deletes
 them without touching real takes. Friend profiles are created in messaging_profiles (the server's
@@ -27,8 +27,8 @@ TAG = "demo-seed"
 TZ = "America/New_York"
 FRIENDS = ["Ayan", "Suhaan", "Devesh", "Noah", "Colin"]
 PROMPT = "Explain one change that would improve your community and why."
-# Your last seven days, oldest first: a gentle climb with one off day, ending yesterday so today's take extends the streak.
-MY_WEEK = [58, 61, 64, 62, 68, 71, 74]
+# Your last six days, oldest first: a gentle climb with one off day, ending yesterday so today's take is day 7.
+MY_WEEK = [57, 60, 64, 62, 68, 72]
 
 STRENGTHS = ["Opens with the point instead of a wind-up.", "Keeps a steady gaze at the lens through the middle.", "Uses one concrete example and sticks with it.", "Hands move on the key words rather than staying frozen."]
 WEAKNESSES = ["Trails off at the end instead of landing the close.", "A few 'um's cluster in the second sentence.", "Reads off-screen for a moment near the end.", "The second point starts before the first one is finished."]
@@ -102,7 +102,7 @@ def friend_id(conn: psycopg.Connection, name: str) -> str:
 def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1].startswith("-"): raise SystemExit(__doc__)
     if not settings.database_url: raise SystemExit("DATABASE_URL is not set; the demo seed needs TigerData.")
-    me, remove = sys.argv[1], "--remove" in sys.argv
+    mine, remove = [a for a in sys.argv[1:] if not a.startswith("-")], "--remove" in sys.argv
     random.seed(7)
     now = datetime.now(ZoneInfo(TZ))
     with psycopg.connect(settings.database_url, connect_timeout=20, autocommit=True) as conn:
@@ -123,10 +123,11 @@ def main() -> None:
             print(f"{name:7s} {uid}  {streak_days} day(s), around {base}")
 
         # You: the past week, oldest first, ending yesterday.
-        for back, score in zip(range(len(MY_WEEK), 0, -1), MY_WEEK):
-            at = (now - timedelta(days=back)).replace(hour=random.randint(17, 21), minute=random.randint(0, 59), second=0, microsecond=0)
-            insert_take(conn, me, at, score)
-        print(f"you     {me}  {len(MY_WEEK)} days: {MY_WEEK}")
+        for me in mine:
+            for back, score in zip(range(len(MY_WEEK), 0, -1), MY_WEEK):
+                at = (now - timedelta(days=back)).replace(hour=random.randint(17, 21), minute=random.randint(0, 59), second=0, microsecond=0)
+                insert_take(conn, me, at, score)
+            print(f"you     {me}  {len(MY_WEEK)} days: {MY_WEEK}")
 
 
 if __name__ == "__main__":
