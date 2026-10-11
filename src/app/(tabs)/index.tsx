@@ -83,7 +83,7 @@ export default function Home() {
         {/* the trail: a dotted road through the two earlier takes, today, and the locked days ahead */}
         <Svg pointerEvents="none" width={400} height={480} style={{ position: 'absolute', left: 0, top: 0 }}>
           <Path
-            d="M290 44 C 250 44, 206 58, 172 86 C 140 112, 124 140, 120 178 C 116 250, 142 326, 187 393 C 215 433, 262 408, 287 427"
+            d="M290 44 C 262 44, 232 50, 207 66 C 170 90, 118 128, 110 178 C 104 250, 134 326, 187 393 C 215 433, 262 408, 287 427"
             fill="none"
             stroke="rgba(255,255,255,0.85)"
             strokeWidth={6}
@@ -99,13 +99,13 @@ export default function Home() {
           </View>
         )}
         {pastTakes.length > 0 && (
-          <View style={{ position: 'absolute', left: 135, top: 49 }}>
+          <View style={{ position: 'absolute', left: 170, top: 26 }}>
             <DoneNode label={pastTakes[pastTakes.length - 1].day} score={pastTakes[pastTakes.length - 1].score} />
           </View>
         )}
 
         {/* today */}
-        <View style={{ position: 'absolute', left: 50, top: 100, width: 140, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', left: 40, top: 100, width: 140, alignItems: 'center' }}>
           <View>
             <View style={styles.openTag}>
               <LinearGradient colors={['#FFFFFF', '#F2FAFF', '#DFF2FB']} style={StyleSheet.absoluteFill} />
